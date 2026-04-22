@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VoiceCoder — AI-Powered C++ IDE</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%0A%20%20%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%237c6dfa%22/%3E%0A%20%20%3Cpath%20d%3D%22M16%206a4%204%200%200%200-4%204v7a4%204%200%200%200%208%200v-7a4%204%200%200%200-4-4z%22%20fill%3D%22white%22/%3E%0A%20%20%3Cpath%20d%3D%22M10%2015v2a6%206%200%200%200%2012%200v-2%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22/%3E%0A%20%20%3Cline%20x1%3D%2216%22%20y1%3D%2223%22%20x2%3D%2216%22%20y2%3D%2227%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%20%20%3Cline%20x1%3D%2212%22%20y1%3D%2227%22%20x2%3D%2220%22%20y2%3D%2227%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%0A%20%20%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%237c6dfa%22/%3E%0A%20%20%3Cpath%20d%3D%22M16%206a4%204%200%200%200-4%204v7a4%204%200%200%200%208%200v-7a4%204%200%200%200-4-4z%22%20fill%3D%22white%22/%3E%0A%20%20%3Cpath%20d%3D%22M10%2015v2a6%206%200%200%200%2012%200v-2%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22/%3E%0A%20%20%3Cline%20x1%3D%2216%22%20y1%3D%2223%22%20x2%3D%2216%22%20y2%3D%2227%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%20%20%3Cline%20x1%3D%2212%22%20y1%3D%2227%22%20x2%3D%2220%22%20y2%3D%2227%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
@@ -26,7 +28,7 @@
     --ai:#db2777;--ai2:#e11d48;--ai-glow:rgba(219,39,119,0.1);
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;transition:background-color 0.2s,border-color 0.2s,color 0.15s}
-  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+  body,html{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;max-width:100vw;}
 
   /* TOPBAR */
   .topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:100}
@@ -312,6 +314,9 @@
   /* CLOUD SAVE BUTTON */
   .btn-cloud{background:linear-gradient(135deg,#0ea5e9,#38bdf8);border:1px solid transparent;color:white}
   .btn-cloud:hover{opacity:0.9;transform:scale(1.02)}
+  /* Toolbar icon buttons — show icon + label on desktop */
+  .toolbar-icon-btn{display:flex;align-items:center;gap:5px;padding:5px 9px}
+  .toolbar-icon-btn .btn-label{font-size:11px;white-space:nowrap}
 
   /* URDU TTS INDICATOR */
   .urdu-badge{background:linear-gradient(135deg,#16a34a,#22c55e);color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;font-family:var(--mono)}
@@ -334,6 +339,160 @@
   .file-row-date{font-size:10px;color:var(--text3);flex-shrink:0;margin-left:8px}
   .share-box{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:8px;font-family:var(--mono);font-size:10px;color:var(--accent3);cursor:pointer;margin-top:8px;word-break:break-all;transition:background 0.15s}
   .share-box:hover{background:var(--bg4)}
+
+  /* ════════════════════════════════════
+     MOBILE RESPONSIVE  (≤768px)
+     ════════════════════════════════════ */
+  @media (max-width: 768px) {
+
+    /* ── Topbar ── */
+    .topbar { padding: 0 10px; gap: 8px; height: 48px; }
+    .logo-text { font-size: 13px; }
+    .ai-badge { display: none; }
+    .status-label { display: none; }
+    .sep { display: none; }
+    .btn { padding: 5px 8px; font-size: 11px; }
+    .nav-pills { display: none !important; }
+
+    /* ── Full-screen single column ── */
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      height: calc(100dvh - 48px); /* dvh = dynamic viewport height, fixes mobile browser chrome */
+      overflow: hidden;
+    }
+
+    /* ── Editor fills remaining space ── */
+    .editor-area {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Sidebar: compact panel slides from left, same as desktop ── */
+    .sidebar {
+      display: none;
+      position: fixed;
+      top: 48px;
+      left: 0;
+      bottom: 56px;
+      z-index: 200;
+      overflow-y: auto;
+      width: 260px;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    }
+    .sidebar.mobile-open { display: flex; flex-direction: column; }
+
+    /* ── Right panel: hidden by default, bottom sheet when open ── */
+    .right-panel {
+      display: none;
+      position: fixed;
+      bottom: 56px;
+      left: 0;
+      right: 0;
+      height: 60vh;
+      z-index: 200;
+      border-top: 2px solid var(--border2);
+      border-radius: 14px 14px 0 0;
+      overflow: hidden;
+    }
+    .right-panel.mobile-open { display: flex; flex-direction: column; }
+
+    /* ── Output pane smaller on mobile ── */
+    .output-pane { height: 120px; flex-shrink: 0; }
+
+    /* ── Editor toolbar: single row on mobile ── */
+    .editor-toolbar { height: 40px; flex-wrap: nowrap; padding: 0 6px; gap: 2px; overflow: hidden; }
+    .tabs-scroll-area { flex: 1; min-width: 0; }
+    .toolbar-actions { flex-shrink: 0; gap: 2px; flex-wrap: nowrap; }
+    .tab-add-btn { flex-shrink: 0; }
+    /* Icon-only on mobile — hide text labels, show just the icon */
+    .toolbar-icon-btn { padding: 6px 7px !important; gap: 0 !important; }
+    .toolbar-icon-btn .btn-label { display: none !important; }
+    .toolbar-icon-btn svg { width: 15px !important; height: 15px !important; margin: 0 !important; }
+
+    /* ── Bottom navigation bar ── */
+    .mobile-nav {
+      display: flex !important;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      z-index: 300;
+      align-items: center;
+      justify-content: space-around;
+      padding-bottom: env(safe-area-inset-bottom); /* iPhone notch support */
+    }
+    .mobile-nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 16px;
+      cursor: pointer;
+      color: var(--text3);
+      font-size: 9px;
+      font-weight: 500;
+      font-family: var(--sans);
+      border: none;
+      background: none;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-nav-btn.active { color: var(--accent2); }
+    .mobile-nav-btn svg { width: 20px; height: 20px; }
+
+    /* ── Push app content above bottom nav ── */
+    #app-page { padding-bottom: 56px; }
+
+    /* ── Dark overlay when panel is open ── */
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 190;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-overlay.show { display: block; }
+
+    /* ── Auth modal full width ── */
+    .auth-box { width: 94vw; padding: 20px 16px; }
+    .modal { width: 94vw; }
+
+    /* ── Landing page ── */
+    .landing h1 { font-size: 26px; }
+    .landing p { font-size: 13px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .landing-btns { flex-direction: column; align-items: stretch; width: 100%; max-width: 280px; }
+
+    /* ── Settings drawer full width on mobile ── */
+    #settings-drawer { width: 100% !important; }
+
+    /* ── Monaco editor fills container ── */
+    #monaco-container { width: 100%; height: 100%; }
+  }
+
+
+  #topbar-mic-btn{display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;-webkit-tap-highlight-color:transparent;flex-shrink:0;}
+  #topbar-mic-btn.mic-active{background:rgba(34,211,160,0.15)!important;border-color:var(--green)!important;color:var(--green)!important;box-shadow:0 0 10px rgba(34,211,160,0.3);animation:tmb-pulse 1.4s infinite;}
+  @keyframes tmb-pulse{0%,100%{box-shadow:0 0 5px rgba(34,211,160,0.2);}50%{box-shadow:0 0 15px rgba(34,211,160,0.5);}}
+  #mic-hud{display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:8px 14px;z-index:500;align-items:center;gap:10px;box-shadow:0 4px 24px rgba(0,0,0,0.5);min-width:220px;max-width:88vw;font-family:var(--mono);font-size:12px;}
+  #mic-hud.show{display:flex;}
+  #mic-hud-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);flex-shrink:0;animation:pulse-dot 1s infinite;}
+  #mic-hud-text{color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #mic-hud-close{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 4px;font-size:16px;line-height:1;flex-shrink:0;}
+  @media(max-width:768px){
+    #topbar-mic-btn{display:flex!important;}
+    #mnav-mic{display:none!important;}
+    /* prevent any element causing horizontal overflow */
+    .app-layout,#app-page{max-width:100vw;overflow-x:hidden;}
+  }
 </style>
 </head>
 <body>
@@ -352,6 +511,10 @@
     <button class="nav-pill" onclick="showLanding()">Home</button>
   </div>
   <div class="topbar-right">
+    <button id="topbar-mic-btn" onclick="toggleMic()" title="Toggle microphone">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      <span id="topbar-mic-label">Mic</span>
+    </button>
     <div class="status-dot" id="status-dot"></div>
     <span class="status-label" id="status-label">idle</span>
     <div class="sep"></div>
@@ -501,26 +664,40 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </div>
         <div class="toolbar-actions">
-          <button class="btn btn-ghost btn-sm" onclick="clearActiveTab()">Clear</button>
-          <button class="btn btn-ghost btn-sm" onclick="copyCode()">Copy</button>
-          <button class="btn btn-ghost btn-sm" onclick="saveFileToPC()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Save
+          <!-- Clear -->
+          <button class="btn btn-ghost btn-sm toolbar-icon-btn" onclick="clearActiveTab()" title="Clear editor">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            <span class="btn-label">Clear</span>
           </button>
-          <button class="btn btn-ghost btn-sm" onclick="loadFileFromPC()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Load
+          <!-- Copy -->
+          <button class="btn btn-ghost btn-sm toolbar-icon-btn" onclick="copyCode()" title="Copy code">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="btn-label">Copy</span>
           </button>
-          <button class="btn btn-ai btn-sm" id="ai-fix-btn" onclick="aiFixErrors()" title="AI Fix Errors">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            AI Fix
+          <!-- Save to PC -->
+          <button class="btn btn-ghost btn-sm toolbar-icon-btn" onclick="saveFileToPC()" title="Save file to PC">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="btn-label">Save</span>
           </button>
-          <button class="btn btn-cloud btn-sm" onclick="saveFileToCloud()" title="Save to Supabase Cloud">
-            ☁ Cloud
+          <!-- Load from PC -->
+          <button class="btn btn-ghost btn-sm toolbar-icon-btn" onclick="loadFileFromPC()" title="Load file from PC">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span class="btn-label">Load</span>
           </button>
-          <button class="btn btn-green btn-sm" onclick="compileCode()" id="compile-btn">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Run
+          <!-- AI Fix -->
+          <button class="btn btn-ai btn-sm toolbar-icon-btn" id="ai-fix-btn" onclick="aiFixErrors()" title="AI Fix Errors">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            <span class="btn-label">AI Fix</span>
+          </button>
+          <!-- Cloud Save -->
+          <button class="btn btn-cloud btn-sm toolbar-icon-btn" onclick="saveFileToCloud()" title="Save to Cloud">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            <span class="btn-label">Cloud</span>
+          </button>
+          <!-- Run -->
+          <button class="btn btn-green btn-sm toolbar-icon-btn" onclick="compileCode()" id="compile-btn" title="Run (Compile)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span class="btn-label">Run</span>
           </button>
         </div>
         <input type="file" id="file-load-input" accept=".cpp,.c,.h,.hpp,.txt,.cc" style="display:none" onchange="handleFileLoad(event)" multiple>
@@ -668,6 +845,27 @@
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
+<div id="mic-hud"><div id="mic-hud-dot"></div><span id="mic-hud-text">Listening...</span><button id="mic-hud-close" onclick="stopListening()">✕</button></div>
+
+<!-- MOBILE OVERLAY -->
+<div class="mobile-overlay" id="mobile-overlay" onclick="closeMobilePanels()"></div>
+
+<!-- MOBILE BOTTOM NAV (hidden on desktop via CSS, shown on mobile) -->
+<nav class="mobile-nav" id="mobile-nav" style="display:none">
+  <button class="mobile-nav-btn active" id="mnav-editor" onclick="mobileShowEditor()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    Editor
+  </button>
+
+  <button class="mobile-nav-btn" id="mnav-ai" onclick="mobileShowAI()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    AI
+  </button>
+  <button class="mobile-nav-btn" id="mnav-run" onclick="compileCode()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Run
+  </button>
+</nav>
 
 <script>
 // STATE
@@ -675,6 +873,7 @@ let isDark = true;
 let currentUser = null;
 let isListening = false;
 let recognition = null;
+const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let speechSupported = ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
 let ttsSupported = ('speechSynthesis' in window);
 let micPermission = 'unknown';
@@ -688,7 +887,7 @@ let outputCount = 0, errorCount = 0;
 let currentPanel = 'guide';
 let echoCommands = true;
 let autoCompile = false;
-let aiMode = true; // use AI for voice commands
+let aiMode = false; // rule-based by default; enable in Settings if you have OpenAI key
 let selectedApi = 'paiza';
 let lastErrors = [];
 let aiChatHistory = [];
@@ -698,14 +897,13 @@ let ctxTargetTabId = null;
 let ttsEnabled = true;          // Voice feedback (TTS)
 let pushToTalk = false;         // Hold Space to talk
 let pttActive = false;          // Push-to-talk currently held
-let noiseGateLevel = 0.02;      // Min amplitude to trigger (0–1)
 let restartAttempts = 0;        // For exponential backoff
 let maxRestartAttempts = 8;
 let restartDelay = 150;         // ms, doubles each time
 let recognitionRestartTimer = null;
 let lastFinalTranscript = '';   // Avoid duplicate commands
 let interimTranscriptBuffer = '';
-let volumeHistory = [];         // For noise gate smoothing
+let mobileRestartPending = false; // Prevents double-restart on mobile (onresult + onend race)
 // Spoken punctuation map
 const SPOKEN_PUNCTUATION = {
   ' period':'.', ' full stop':'.', ' comma':',', ' semicolon':';',
@@ -1176,6 +1374,43 @@ function renderSnippetsPanel() {
 
 
 
+function tryRuleCommand(raw, confidence) {
+  const input = raw.toLowerCase().trim().replace(/name space/g,'namespace').replace(/i o stream/g,'iostream').replace(/c out/g,'cout').replace(/c in/g,'cin');
+  // Check code snippet commands
+  for (const cmd of COMMANDS) {
+    for (const t of cmd.trigger) {
+      if (input.includes(t)) {
+        insertCode(cmd.code);
+        addCmdToHistory(raw, true, confidence, false);
+        if (echoCommands) addLog('info', `> ${raw}`);
+        speak('Done', false);
+        setStatus(isListening ? 'listening' : 'idle');
+        return true;
+      }
+    }
+  }
+  // Check action commands
+  const actionMap = {
+    'new file':['new file','new tab','open new'],'closetab':['close tab'],'nexttab':['next tab'],'prevtab':['previous tab','prev tab'],
+    'compile':['compile','run code','execute','build','run'],'undo':['undo'],'clear':['clear','clear code'],
+  };
+  for (const [act, triggers] of Object.entries(actionMap)) {
+    if (triggers.some(t=>input.includes(t))) {
+      if (act==='new file') addNewTab();
+      else if (act==='closetab') closeTab(null,activeTabId);
+      else if (act==='nexttab') navigateTab(1);
+      else if (act==='prevtab') navigateTab(-1);
+      else if (act==='compile') compileCode();
+      else if (act==='undo') undoLast();
+      else if (act==='clear') clearActiveTab();
+      addCmdToHistory(raw, true, confidence, false);
+      speak('Done', false);
+      return true;
+    }
+  }
+  return false;
+}
+
 function processFallbackCommand(raw, confidence) {
   const input = raw.toLowerCase().trim().replace(/name space/g,'namespace').replace(/i o stream/g,'iostream').replace(/c out/g,'cout').replace(/c in/g,'cin');
   let matched = null;
@@ -1243,35 +1478,26 @@ function speak(text, urgent=false) {
   utt.rate = 1.1;
   utt.pitch = 1.0;
   utt.volume = 0.75;
-  // Prefer a natural-sounding voice if available
-  const voices = window.speechSynthesis.getVoices();
+  // Use cached voices (populated via onvoiceschanged) for reliable voice selection
+  const voices = _cachedVoices.length ? _cachedVoices : window.speechSynthesis.getVoices();
   const pref = voices.find(v => v.lang.startsWith('en') && /natural|google|samantha|karen|moira/i.test(v.name));
   if (pref) utt.voice = pref;
   window.speechSynthesis.speak(utt);
 }
 
-// Noise gate check if current volume is above threshold 
-function isAboveNoiseGate() {
-  if (!analyser) return true; // can't measure, let through
-  const buf = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteTimeDomainData(buf);
-  let sum = 0;
-  for (let i = 0; i < buf.length; i++) sum += Math.abs(buf[i] - 128);
-  const level = sum / buf.length / 128;
-  volumeHistory.push(level);
-  if (volumeHistory.length > 10) volumeHistory.shift();
-  const avg = volumeHistory.reduce((a,b)=>a+b,0) / volumeHistory.length;
-  return avg > noiseGateLevel;
-}
+
 
 //Recognition factory
 function buildRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
   const r = new SR();
-  r.continuous = true;
+  // Mobile Chrome does NOT support continuous=true reliably — it fires onend immediately.
+  // On mobile we use continuous=false and manually restart after each result.
+  r.continuous = !isMobileDevice;
   r.interimResults = true;
   r.lang = recognitionLang;
-  r.maxAlternatives = 3; // grab top 3 for better accuracy
+  r.maxAlternatives = isMobileDevice ? 1 : 3;
   return r;
 }
 
@@ -1285,7 +1511,7 @@ function attachRecognitionHandlers(r) {
     addLog('info', `🎙 Recognition started [${recognitionLang}]`);
   };
 
-  r.onaudiostart = () => { startAudioContext(); };
+  r.onaudiostart = () => { if (!isMobileDevice) startAudioContext(); };
 
   r.onsoundstart = () => {
     // Clear "no speech" placeholder when sound is detected
@@ -1307,14 +1533,9 @@ function attachRecognitionHandlers(r) {
       const result = event.results[i];
 
       if (result.isFinal) {
-        // Pick best alternative above noise gate threshold
         let best = result[0];
         for (let j = 1; j < result.length; j++) {
           if (result[j].confidence > best.confidence) best = result[j];
-        }
-        if (!isAboveNoiseGate()) {
-          addLog('info', '🔇 Noise gate filtered low-volume input');
-          continue;
         }
         const normalized = normalizePunctuation(best.transcript);
         finalText += normalized;
@@ -1338,8 +1559,9 @@ function attachRecognitionHandlers(r) {
       document.getElementById('transcript-badge').style.display = finalText ? 'none' : 'inline-block';
     }
 
+    const _ht=document.getElementById('mic-hud-text');
+    if(_ht&&isListening)_ht.textContent=(interim||finalText||'Listening...').slice(0,55);
     if (finalText.trim()) {
-      // Dedup: ignore if same as last command within 1.5s
       if (finalText.trim() === lastFinalTranscript) return;
       lastFinalTranscript = finalText.trim();
       setTimeout(() => { lastFinalTranscript = ''; }, 1500);
@@ -1347,6 +1569,10 @@ function attachRecognitionHandlers(r) {
       setStatus('processing');
       if (pushToTalk && !pttActive) return; // PTT: ignore if button released
       processVoiceCommand(finalText.trim(), bestConfidence);
+
+      // On mobile (continuous=false), flag that we handled a result so onend
+      // can do ONE clean restart instead of both handlers firing simultaneously.
+      if (isMobileDevice) mobileRestartPending = true;
     }
   };
 
@@ -1387,6 +1613,22 @@ function attachRecognitionHandlers(r) {
 
   r.onend = () => {
     if (!isListening) { setStatus('idle'); return; }
+
+    // On mobile: if we just processed a result, reset the crash counter and do a clean restart
+    if (isMobileDevice && mobileRestartPending) {
+      mobileRestartPending = false;
+      restartAttempts = 0; // successful command — reset backoff
+      clearTimeout(recognitionRestartTimer);
+      recognitionRestartTimer = setTimeout(() => {
+        if (!isListening) return;
+        try {
+          recognition = buildRecognition();
+          if (recognition) { attachRecognitionHandlers(recognition); recognition.start(); }
+        } catch(e) { stopListening(); }
+      }, 600);
+      return;
+    }
+
     // Exponential backoff restart to avoid hammering the API
     if (restartAttempts >= maxRestartAttempts) {
       addLog('error', '🎙 Recognition failed to restart after multiple attempts.');
@@ -1394,18 +1636,18 @@ function attachRecognitionHandlers(r) {
       stopListening();
       return;
     }
-    const delay = Math.min(restartDelay * Math.pow(1.5, restartAttempts), 3000);
+    const delay = isMobileDevice ? 600 : Math.min(restartDelay * Math.pow(1.5, restartAttempts), 3000);
     restartAttempts++;
     clearTimeout(recognitionRestartTimer);
     recognitionRestartTimer = setTimeout(() => {
       if (!isListening) return;
       try {
-        r.start();
+        if (isMobileDevice) { recognition = buildRecognition(); attachRecognitionHandlers(recognition); }
+        recognition.start();
       } catch(e) {
-        // If old instance errors, create fresh recognition
         recognition = buildRecognition();
-        attachRecognitionHandlers(recognition);
-        try { recognition.start(); } catch(e2) { stopListening(); }
+        if (recognition) { attachRecognitionHandlers(recognition); try { recognition.start(); } catch(e2) { stopListening(); } }
+        else stopListening();
       }
     }, delay);
   };
@@ -1413,15 +1655,28 @@ function attachRecognitionHandlers(r) {
 
 function toggleMic() { isListening ? stopListening() : startListening(); }
 
-function startListening() {
-  if (!speechSupported) { showToast('error', 'Speech recognition not supported. Use Chrome or Edge.'); return; }
+async function startListening() {
+  if (!speechSupported) { showToast('error', 'Use Chrome for voice support.'); return; }
   if (isListening) return;
+  if (isMobileDevice || micPermission === 'unknown') {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micPermission = 'granted';
+      stream.getTracks().forEach(t => t.stop());
+      document.getElementById('perm-btn')?.classList.remove('show');
+    } catch(e) {
+      micPermission = 'denied';
+      showBanner('error', '🚫 Mic blocked. Tap 🔒 in address bar → allow microphone.');
+      document.getElementById('perm-btn')?.classList.add('show');
+      return;
+    }
+  }
   isListening = true;
   hideBanner();
   restartAttempts = 0;
-  restartDelay = 150;
-  volumeHistory = [];
+  restartDelay = 200;
   recognition = buildRecognition();
+  if (!recognition) { showToast('error', 'Speech API unavailable'); isListening = false; return; }
   attachRecognitionHandlers(recognition);
   try {
     recognition.start();
@@ -1430,28 +1685,34 @@ function startListening() {
     isListening = false;
     return;
   }
-  document.getElementById('mic-btn').classList.add('active');
-  document.getElementById('mic-state').textContent = pushToTalk ? 'Hold Space to speak' : 'Listening...';
-  document.getElementById('mic-state').classList.add('active');
+  document.getElementById('mic-btn')?.classList.add('active');
+  if(document.getElementById('mic-state')){document.getElementById('mic-state').textContent=isMobileDevice?'Tap mic to stop':(pushToTalk?'Hold Space to speak':'Listening...');document.getElementById('mic-state').classList.add('active');}
+  const _tb=document.getElementById('topbar-mic-btn');
+  if(_tb){_tb.classList.add('mic-active');document.getElementById('topbar-mic-label').textContent='Stop';}
+  const _hud=document.getElementById('mic-hud');
+  if(_hud){_hud.classList.add('show');document.getElementById('mic-hud-text').textContent='Listening...';}
   showToast('info', '🎙 Microphone active');
-  speak(pushToTalk ? 'Push to talk mode ready' : 'Listening', false);
+  if (!isMobileDevice) speak(pushToTalk ? 'Push to talk mode ready' : 'Listening', false);
 }
 
 function stopListening() {
   isListening = false;
   pttActive = false;
+  mobileRestartPending = false;
   clearTimeout(noSpeechTimer);
   clearTimeout(recognitionRestartTimer);
   if (recognition) { try { recognition.abort(); } catch(e) {} recognition = null; }
   stopAudioContext();
   setStatus('idle');
   updateConfidence(0);
-  volumeHistory = [];
-  document.getElementById('mic-btn').classList.remove('active');
-  document.getElementById('mic-state').textContent = 'Click to start listening';
-  document.getElementById('mic-state').classList.remove('active');
+  document.getElementById('mic-btn')?.classList.remove('active');
+  if(document.getElementById('mic-state')){document.getElementById('mic-state').textContent='Click to start listening';document.getElementById('mic-state').classList.remove('active');}
   document.getElementById('transcript').innerHTML = '<span class="transcript-placeholder">Say a command...</span>';
   document.getElementById('transcript-badge').style.display = 'none';
+  const _xtb=document.getElementById('topbar-mic-btn');
+  if(_xtb){_xtb.classList.remove('mic-active');document.getElementById('topbar-mic-label').textContent='Mic';}
+  const _xhud=document.getElementById('mic-hud');
+  if(_xhud)_xhud.classList.remove('show');
   drawIdleWaveform();
   speak('Microphone off', false);
 }
@@ -1490,7 +1751,17 @@ document.addEventListener('keydown', (e) => {
 });
 
 async function requestMicPermission() {
-  try { await navigator.mediaDevices.getUserMedia({audio:true}); micPermission='granted'; document.getElementById('perm-btn').classList.remove('show'); showToast('success','Mic permission granted'); } catch(e){ micPermission='denied'; showBanner('error','🚫 Mic permission denied.'); }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micPermission = 'granted';
+    stream.getTracks().forEach(t => t.stop());
+    document.getElementById('perm-btn').classList.remove('show');
+    hideBanner();
+    showToast('success', '✅ Mic allowed! Now tap the mic button.');
+  } catch(e) {
+    micPermission = 'denied';
+    showBanner('error', '🚫 Mic blocked. Tap 🔒 in address bar → Site settings → Allow Microphone.');
+  }
 }
 
 // AUDIO CONTEXT / WAVEFORM
@@ -1589,7 +1860,9 @@ function navigateTab(dir){
 }
 function clearActiveTab(){
   const tab=getActiveTab(); tab.undoStack.push(tab.code);
-  document.getElementById('code-editor').value=''; tab.code=''; tab.modified=true;
+  if(typeof monacoReady!=='undefined'&&monacoReady&&monacoEditor){monacoEditor.setValue('');}
+  else{const el=document.getElementById('code-editor');if(el)el.value='';}
+  tab.code=''; tab.modified=true;
   updateLineNumbers(); renderTabs(); showToast('info','Editor cleared');
 }
 function markActiveModified(){const t=getActiveTab();if(t){t.modified=true;renderTabs();}}
@@ -1703,25 +1976,19 @@ async function simulateCompile(code){
 }
 
 async function jdoodleCompile(code){
-  const cid=(document.getElementById('jd-client')||{}).value||'';
-  const sec=(document.getElementById('jd-secret')||{}).value||'';
-  if(!cid||!sec) throw new Error('JDoodle credentials missing');
-  const res=await fetch('https://api.jdoodle.com/v1/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:cid,clientSecret:sec,script:code,language:'cpp17',versionIndex:'0'})});
+  const res=await fetch(API_BASE+'/compile/jdoodle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
   if(!res.ok) throw new Error('JDoodle '+res.status);
   const d=await res.json();
-  if(d.error) return{success:false,errors:[d.error]};
-  return d.output?.toLowerCase().includes('error:')?{success:false,errors:[d.output]}:{success:true,output:d.output||''};
+  if(!d.success) return{success:false,errors:[d.error||'JDoodle failed']};
+  return{success:true,output:d.output||''};
 }
 
 async function paizaCompile(code){
-  const cr=await fetch('https://api.paiza.io/runners/create?source_code='+encodeURIComponent(code)+'&language=cpp&api_key=guest',{method:'POST'});
-  if(!cr.ok) throw new Error('Paiza '+cr.status);
-  const id=(await cr.json()).id;
-  await new Promise(r=>setTimeout(r,2500));
-  const gr=await fetch('https://api.paiza.io/runners/get_details?id='+id+'&api_key=guest');
-  if(!gr.ok) throw new Error('Paiza '+gr.status);
-  const d=await gr.json();
-  return d.build_result==='failure'?{success:false,errors:[d.build_stderr||'Build failed']}:{success:true,output:d.stdout||'(no output)'};
+  const res=await fetch(API_BASE+'/compile/paiza',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+  if(!res.ok) throw new Error('Paiza '+res.status);
+  const d=await res.json();
+  if(!d.success) return{success:false,errors:[d.error||'Paiza failed']};
+  return{success:true,output:d.output||'(no output)'};
 }
 
 // OUTPUT
@@ -1797,7 +2064,9 @@ function showEditor(){
   document.getElementById('landing-page').style.display='none';
   document.getElementById('app-page').style.display='block';
   document.getElementById('nav-pills').style.display='flex';
-  requestAnimationFrame(()=>{ updateLineNumbers(); drawIdleWaveform(); renderTabs(); renderPanel(currentPanel); });
+  const _mb=document.getElementById('topbar-mic-btn');
+  if(_mb)_mb.style.display='flex';
+  requestAnimationFrame(()=>{ updateLineNumbers(); drawIdleWaveform(); renderTabs(); renderPanel(currentPanel); initMobileNav(); });
 }
 function guardedShowEditor(){
   if(currentUser) showEditor();
@@ -2241,18 +2510,50 @@ async function aiExplainErrors(errors) {
 // URDU TTS — speak in اردو
 // ═══════════════════════════════════════════════
 let urduTtsEnabled = false;
+let _cachedVoices = [];
+
+// Voices load asynchronously — cache them when ready
+function loadVoices() {
+  _cachedVoices = window.speechSynthesis.getVoices();
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices(); // also try immediately (Firefox populates synchronously)
+}
+
+function getUrduVoice() {
+  const voices = _cachedVoices.length ? _cachedVoices : window.speechSynthesis.getVoices();
+  // Try exact matches first, then broad fallbacks
+  return voices.find(v => v.lang === 'ur-PK')
+      || voices.find(v => v.lang === 'ur')
+      || voices.find(v => v.lang.startsWith('ur'))
+      || voices.find(v => v.name.toLowerCase().includes('urdu'))
+      || null;
+}
 
 function speakUrdu(text) {
   if (!ttsSupported) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   utt.lang = 'ur-PK';
-  utt.rate = 0.95;
+  utt.rate = 0.9;
   utt.pitch = 1.0;
-  const voices = window.speechSynthesis.getVoices();
-  const urduVoice = voices.find(v => v.lang === 'ur-PK' || v.lang === 'ur' || v.name.toLowerCase().includes('urdu'));
-  if (urduVoice) utt.voice = urduVoice;
-  window.speechSynthesis.speak(utt);
+  utt.volume = 1.0;
+
+  const urduVoice = getUrduVoice();
+  if (urduVoice) {
+    utt.voice = urduVoice;
+    window.speechSynthesis.speak(utt);
+  } else {
+    // No Urdu voice installed on this device — guide the user
+    showToast('warn', '⚠ No Urdu voice found. Install from OS settings (see below).');
+    addLog('warn', '🔊 Urdu TTS: no ur-PK voice installed on this device.');
+    // Speak in English as fallback so user at least hears something
+    const fallbackUtt = new SpeechSynthesisUtterance(text);
+    fallbackUtt.lang = 'en-US';
+    fallbackUtt.rate = 0.9;
+    window.speechSynthesis.speak(fallbackUtt);
+  }
 }
 
 function speakFeedback(text, isSuccess) {
@@ -2544,8 +2845,8 @@ async function compileCode() {
 function renderSettingsPanel() {
   return `<div>
     <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">AI</div>
-    <div class="ai-key-notice">Paste your OpenAI API key to enable AI features.<br><a onclick="window.open('https://platform.openai.com/api-keys')">Get a key →</a></div>
-    <input class="api-key-input" id="openai-api-key" type="password" placeholder="sk-..." oninput="localStorage.setItem('vc_openai_apikey',this.value.trim())">
+    <div class="ai-key-notice" id="ai-key-notice" style="${localStorage.getItem('vc_openai_apikey')?'display:none':''}">Paste your OpenAI API key to enable AI features.<br><a onclick="window.open('https://platform.openai.com/api-keys')">Get a key →</a></div>
+    <input class="api-key-input" id="openai-api-key" type="password" placeholder="sk-..." value="${localStorage.getItem('vc_openai_apikey')||''}" oninput="localStorage.setItem('vc_openai_apikey',this.value.trim());const n=document.getElementById('ai-key-notice');if(n)n.style.display=this.value.trim()?'none':''">
     <div class="setting-row" style="margin-top:8px">
       <div><div class="setting-label">AI mode</div><div class="setting-sub">Use GPT-4o for voice</div></div>
       <button class="toggle ${aiMode?'on':''}" onclick="aiMode=!aiMode;this.className='toggle '+(aiMode?'on':'');showToast('info','AI mode '+(aiMode?'on':'off'))"></button>
@@ -2569,15 +2870,7 @@ function renderSettingsPanel() {
       <div><div class="setting-label">Push-to-Talk</div><div class="setting-sub">Hold <kbd style="font-family:var(--mono);background:var(--bg4);padding:1px 4px;border-radius:3px;font-size:9px">Space</kbd> to speak</div></div>
       <button class="toggle ${pushToTalk?'on':''}" onclick="pushToTalk=!pushToTalk;this.className='toggle '+(pushToTalk?'on':'');if(isListening)document.getElementById('mic-state').textContent=pushToTalk?'Hold Space to speak':'Listening...';showToast('info','Push-to-Talk '+(pushToTalk?'on':'off'))"></button>
     </div>
-    <div class="setting-row">
-      <div><div class="setting-label">Noise Gate</div><div class="setting-sub">Filter background noise</div></div>
-      <select class="sel" onchange="noiseGateLevel=parseFloat(this.value);showToast('info','Noise gate: '+this.options[this.selectedIndex].text)">
-        <option value="0" ${noiseGateLevel===0?'selected':''}>Off</option>
-        <option value="0.01" ${noiseGateLevel===0.01?'selected':''}>Low</option>
-        <option value="0.02" ${noiseGateLevel===0.02?'selected':''}>Medium</option>
-        <option value="0.05" ${noiseGateLevel===0.05?'selected':''}>High</option>
-      </select>
-    </div>
+
     <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin:14px 0 8px">🔊 Voice Feedback (TTS)</div>
     <div class="setting-row">
       <div><div class="setting-label">Speak confirmations</div><div class="setting-sub">Audible command feedback</div></div>
@@ -2586,9 +2879,19 @@ function renderSettingsPanel() {
     <div class="setting-row">
       <div>
         <div class="setting-label">🗣 Urdu Voice (اردو) <span class="urdu-badge">پاکستان</span></div>
-        <div class="setting-sub">Responses in Urdu TTS</div>
+        <div class="setting-sub" id="urdu-voice-status">${(()=>{const v=getUrduVoice();return v?'✅ Voice found: '+v.name:'⚠ No Urdu voice — install from OS settings'})()}</div>
       </div>
-      <button class="toggle ${urduTtsEnabled?'on':''}" id="urdu-toggle" onclick="urduTtsEnabled=!urduTtsEnabled;this.className='toggle '+(urduTtsEnabled?'on':'');showToast('info',urduTtsEnabled?'اردو آواز فعال':'Urdu voice off');if(urduTtsEnabled)speakUrdu('سلام، وائس کوڈر میں خوش آمدید')"></button>
+      <button class="toggle ${urduTtsEnabled?'on':''}" id="urdu-toggle" onclick="
+        urduTtsEnabled=!urduTtsEnabled;
+        this.className='toggle '+(urduTtsEnabled?'on':'');
+        const sv=document.getElementById('urdu-voice-status');
+        const uv=getUrduVoice();
+        if(sv)sv.textContent=uv?'✅ Voice: '+uv.name:'⚠ No Urdu voice — install from OS settings';
+        if(urduTtsEnabled){
+          if(getUrduVoice()){speakUrdu('سلام، وائس کوڈر میں خوش آمدید');showToast('info','اردو آواز فعال');}
+          else{showToast('warn','⚠ Install Urdu voice first (see instructions below)');}
+        }else{showToast('info','Urdu voice off');}
+      "></button>
     </div>
     <div class="setting-row" style="${ttsSupported?'':'opacity:0.4;pointer-events:none'}">
       <div><div class="setting-label">TTS status</div><div class="setting-sub">${ttsSupported?'Available in this browser':'Not supported'}</div></div>
@@ -2687,7 +2990,7 @@ function addErrorExplainBox() {
 // ═══════════════════════════════════════════════
 const _origProcessVoiceCommand = window.processVoiceCommand;
 function processVoiceCommand(raw, confidence) {
-  // Check custom commands first
+  // 1. Custom commands first
   const customMatch = matchCustomCommand(raw);
   if (customMatch) {
     insertCode(customMatch.code);
@@ -2695,28 +2998,33 @@ function processVoiceCommand(raw, confidence) {
     speakFeedback('Done', true);
     return;
   }
-  if (aiMode) {
-    const lower = raw.toLowerCase().trim();
-    const aiTriggers = {
-      explain: ['explain','explain code','explain this','what does this do'],
-      review:  ['review','review code','review my code','code review'],
-      fix:     ['fix','fix error','fix errors','fix the error','fix my code'],
-      complete:['complete','complete code','complete my code','finish my code','auto complete'],
-    };
-    for (const [action, triggers] of Object.entries(aiTriggers)) {
-      if (triggers.some(t => lower.includes(t))) {
-        if (action==='explain') aiExplainCode();
-        else if (action==='review')  aiReviewCode();
-        else if (action==='fix')     aiFixErrors();
-        else if (action==='complete')aiCompleteCode();
-        addCmdToHistory(raw, true, confidence, true);
-        return;
-      }
+  const lower = raw.toLowerCase().trim();
+  // 2. AI-specific triggers (explain/review/fix/complete) — always available
+  const aiTriggers = {
+    explain: ['explain','explain code','explain this','what does this do'],
+    review:  ['review','review code','review my code','code review'],
+    fix:     ['fix','fix error','fix errors','fix the error','fix my code'],
+    complete:['complete','complete code','complete my code','finish my code','auto complete'],
+  };
+  for (const [action, triggers] of Object.entries(aiTriggers)) {
+    if (triggers.some(t => lower.includes(t))) {
+      if (action==='explain') aiExplainCode();
+      else if (action==='review')  aiReviewCode();
+      else if (action==='fix')     aiFixErrors();
+      else if (action==='complete')aiCompleteCode();
+      addCmdToHistory(raw, true, confidence, true);
+      return;
     }
-    aiProcessVoiceCommand(raw, confidence);
-    return;
   }
-  processFallbackCommand(raw, confidence);
+  // 3. Always try rule-based first — fast and works without API key
+  const ruleMatched = tryRuleCommand(raw, confidence);
+  if (ruleMatched) return;
+  // 4. If AI mode on and no rule matched, send to OpenAI
+  if (aiMode) { aiProcessVoiceCommand(raw, confidence); return; }
+  // 5. No match at all
+  addCmdToHistory(raw, false, confidence, false);
+  addLog('warn', `Unknown: "${raw}"`);
+  showToast('warn', 'Command not recognized');
 }
 
 // ═══════════════════════════════════════════════
@@ -2766,6 +3074,51 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `.autocomplete-inline-ghost { opacity: 0.4; color: var(--accent3); font-style: italic; }`;
   document.head.appendChild(style);
 });
+
+// ════════════════════════════════
+// MOBILE NAVIGATION
+// ════════════════════════════════
+function initMobileNav() {
+  const nav = document.getElementById('mobile-nav');
+  if (!nav) return;
+  nav.style.display = isMobileDevice ? 'flex' : 'none';
+}
+
+function closeMobilePanels() {
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+  document.querySelector('.right-panel')?.classList.remove('mobile-open');
+  document.getElementById('mobile-overlay')?.classList.remove('show');
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mnav-editor')?.classList.add('active');
+}
+
+function mobileShowEditor() {
+  closeMobilePanels();
+}
+
+function mobileShowMic() {
+  const sidebar = document.querySelector('.sidebar');
+  const isOpen = sidebar?.classList.contains('mobile-open');
+  closeMobilePanels();
+  if (!isOpen) {
+    sidebar?.classList.add('mobile-open');
+    document.getElementById('mobile-overlay')?.classList.add('show');
+    document.getElementById('mnav-mic')?.classList.add('active');
+  }
+}
+
+function mobileShowAI() {
+  const panel = document.querySelector('.right-panel');
+  const isOpen = panel?.classList.contains('mobile-open');
+  closeMobilePanels();
+  if (!isOpen) {
+    panel?.classList.add('mobile-open');
+    document.getElementById('mobile-overlay')?.classList.add('show');
+    document.getElementById('mnav-ai')?.classList.add('active');
+    renderPanel(currentPanel);
+  }
+}
+
 </script>
 </body>
 </html>
