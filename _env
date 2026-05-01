@@ -1,0 +1,4 @@
+DATABASE_URL=postgresql://postgres.cbvnyxtyhcbyzqvjxlkj:voicecoder123@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
+JWT_SECRET=hiiammaryummynameisyummyandimgoodimbuildingavoicecoder
+JWT_EXPIRES_IN=7d
+PORT=4000
