@@ -509,6 +509,9 @@
   <div class="nav-pills" id="nav-pills" style="display:none">
     <button class="nav-pill active" onclick="showEditor()">Editor</button>
     <button class="nav-pill" onclick="showLanding()">Home</button>
+    <button class="nav-pill" id="offline-nav-pill" onclick="toggleOfflinePanel()" title="Offline voice coding — no internet needed">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>Offline
+    </button>
   </div>
   <div class="topbar-right">
     <button id="topbar-mic-btn" onclick="toggleMic()" title="Toggle microphone">
@@ -604,6 +607,8 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
+      <!-- ── ONLINE sidebar content ── -->
+      <div id="sidebar-online-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
       <div class="sidebar-section mic-wrap">
         <button class="perm-btn" id="perm-btn" onclick="requestMicPermission()">Allow Microphone</button>
         <div class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Toggle microphone (Ctrl+M)">
@@ -654,6 +659,36 @@
         <input class="cmd-input" id="text-cmd" placeholder="Type a command..." onkeydown="handleTextCmd(event)">
         <button class="btn btn-accent btn-sm" onclick="executeTextCmd()">Run</button>
       </div>
+      </div><!-- end #sidebar-online-content -->
+
+      <!-- ── OFFLINE sidebar content ── -->
+      <div id="sidebar-offline-content" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+        <div class="ofl-mic-zone" style="border-bottom:1px solid var(--border)">
+          <div class="ofl-mic-ring" id="ofl-mic-ring" onclick="oflToggleMic()" title="Click to start / stop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+          <div class="ofl-mic-label" id="ofl-mic-label">Click mic to start<br>offline voice coding</div>
+          <button class="btn btn-green btn-sm" onclick="oflToggleMic()" id="ofl-toggle-btn" style="width:100%">&#9654; Start Listening</button>
+          <button class="btn btn-ghost btn-sm" onclick="oflClearEditor()" style="width:100%">&#128465; Clear Editor</button>
+        </div>
+        <div class="ofl-transcript-area">
+          <div class="ofl-transcript-label">Transcript</div>
+          <div class="ofl-transcript-box" id="ofl-transcript">Say a command&#8230;</div>
+        </div>
+        <div class="ofl-log" style="flex:1;overflow-y:auto">
+          <div class="ofl-log-label">Command Log</div>
+          <div id="ofl-log-list"><div style="color:var(--text3);font-size:11px;font-family:var(--mono);padding:8px 0">No commands yet.</div></div>
+        </div>
+        <div class="ofl-text-bar">
+          <input class="ofl-text-input" id="ofl-text-input" placeholder="Or type a command&#8230;" onkeydown="if(event.key==='Enter')oflRunText()">
+          <button class="btn btn-accent btn-sm" onclick="oflRunText()">Run</button>
+        </div>
+      </div><!-- end #sidebar-offline-content -->
     </div>
 
     <!-- EDITOR -->
@@ -734,6 +769,7 @@
         <div class="panel-tab active" onclick="switchPanel('guide',this)">Commands</div>
         <div class="panel-tab" onclick="switchPanel('snippets',this)">Snippets</div>
         <div class="panel-tab" onclick="switchPanel('dashboard',this)">Dashboard</div>
+        <div class="panel-tab" id="offline-right-tab" onclick="switchPanel('offline',this)" style="display:none;color:var(--green)">&#128246; Offline</div>
       </div>
       <div class="panel-body" id="panel-body"></div>
     </div>
@@ -1235,9 +1271,6 @@ function switchPanel(panel, el) {
   currentPanel = panel;
   document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
   if (el) el.classList.add('active');
-  document.querySelectorAll('.panel-tab').forEach(t => {
-    if (t.textContent.trim().replace('✦ ','') === {ai:'AI Chat',guide:'Commands',snippets:'Snippets',dashboard:'Dashboard'}[panel]) t.classList.add('active');
-  });
   renderPanel(panel);
 }
 
@@ -1247,6 +1280,7 @@ function renderPanel(panel) {
   else if (panel==='guide')    body.innerHTML = renderGuidePanel();
   else if (panel==='snippets') body.innerHTML = renderSnippetsPanel();
   else if (panel==='dashboard'){ body.innerHTML = renderDashboardPanel(); loadDashboardFiles(); }
+  else if (panel==='offline')  { body.innerHTML = ''; renderOfflineRefPanel(body); }
 
   if (panel==='ai') {
     // Re-render chat history
@@ -1322,18 +1356,30 @@ const GROUPS = [
 ];
 
 
+// Safe in-memory store for cloud file payloads — avoids inlining code into HTML attributes
+const _cloudFileCache = {};
+
 async function loadDashboardFiles(){
   const el = document.getElementById('cloud-files-list');
   if(!el) return;
   if(!currentUser){ el.innerHTML='<div style="color:var(--text3);font-size:11px">Sign in to see cloud files</div>'; return; }
+  el.innerHTML='<div style="color:var(--text3);font-size:11px">Loading...</div>';
   const files = await loadCloudFiles();
   if(!files || !files.length){ el.innerHTML='<div style="color:var(--text3);font-size:11px">No cloud files yet</div>'; return; }
+  // Cache file data by id so onclick handlers never embed raw code in HTML
+  files.forEach(f => { _cloudFileCache[f.id] = { filename: f.filename, code: f.code }; });
   el.innerHTML = files.map(f=>`
     <div class="file-row">
-      <span class="file-row-name" onclick="openCloudFile('${f.id}','${escHtml(f.filename)}',${JSON.stringify(f.code)})" title="Click to open">${escHtml(f.filename)}</span>
+      <span class="file-row-name" onclick="openCloudFileById(${f.id})" title="Click to open">${escHtml(f.filename)}</span>
       <span class="file-row-date">${new Date(f.updated_at).toLocaleDateString()}</span>
       <button class="btn btn-ghost btn-sm" style="padding:2px 6px;margin-left:4px;color:var(--red)" onclick="deleteCloudFile(${f.id})" title="Delete">✕</button>
     </div>`).join('');
+}
+
+function openCloudFileById(id) {
+  const f = _cloudFileCache[id];
+  if (!f) { showToast('error', 'File data not found — try reloading the dashboard'); return; }
+  openCloudFile(id, f.filename, f.code);
 }
 
 async function shareAndShowLink(){
@@ -1353,6 +1399,26 @@ function renderGuidePanel() {
           ${c.code?`<div class="cmd-output">${escHtml(c.code.trim().substring(0,50))}${c.code.trim().length>50?'...':''}</div>`:''}
         </div>`).join('')}
     </div>`).join('');
+}
+
+function renderOfflineRefPanel(container) {
+  container.style.cssText = 'padding:0;overflow:hidden;display:flex;flex-direction:column;height:100%';
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0';
+  hdr.innerHTML = '<span style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--mono);flex:1">\U0001F4D6 Voice Command Reference &mdash; click any card to insert</span><button class="btn btn-ghost btn-sm" onclick="oflInsertMain()">Insert main()</button>';
+  container.appendChild(hdr);
+  var grid = document.createElement('div');
+  grid.style.cssText = 'flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:1fr;gap:8px;align-content:start';
+  var cmds = (typeof OFL_COMMANDS !== 'undefined') ? OFL_COMMANDS : [];
+  grid.innerHTML = cmds.map(function(cmd) {
+    var preview = (cmd.code || '').trim().replace(/</g,'&lt;').replace(/>/g,'&gt;').substring(0,70);
+    return '<div class="ofl-ref-card" onclick="oflInsertCode(' + JSON.stringify(cmd.code) + ')">'
+      + '<div class="ofl-ref-phrase">' + cmd.label + '</div>'
+      + '<div class="ofl-ref-desc">' + cmd.desc + '</div>'
+      + '<div class="ofl-ref-preview">' + preview + '</div>'
+      + '</div>';
+  }).join('');
+  container.appendChild(grid);
 }
 
 const SNIPPETS = [
@@ -2689,9 +2755,12 @@ async function deleteCloudFile(id) {
   const token = authGetToken();
   if (!token) return;
   try {
-    await fetch(`${API_BASE}/files/delete/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-    if (currentPanel === 'dashboard') { renderPanel('dashboard'); }
+    const res = await fetch(`${API_BASE}/files/delete/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) { showToast('error', 'Delete failed'); return; }
+    delete _cloudFileCache[id];
     showToast('info', 'File deleted');
+    // Refresh the file list in place without full panel re-render
+    if (currentPanel === 'dashboard') loadDashboardFiles();
   } catch(e) { showToast('error', 'Delete failed'); }
 }
 
@@ -3119,6 +3188,1304 @@ function mobileShowAI() {
   }
 }
 
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     OFFLINE VOICE MODE PANEL
+     Works 100% in-browser: Web Speech API + rule-based C++ engine
+     No server · No API key · No internet required after page load
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+#offline-panel { display: none !important; }
+
+.ofl-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.ofl-title { font-size: 15px; font-weight: 700; flex: 1; }
+.ofl-badge {
+  background: linear-gradient(135deg,#16a34a,#22c55e);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+.ofl-body {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+@media(max-width:768px){
+  .ofl-body { grid-template-columns: 1fr; }
+  .ofl-code-side { display: none; }
+}
+
+/* Left side — mic controls */
+.ofl-mic-side {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ofl-mic-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px 20px;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.ofl-mic-ring {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: var(--bg4);
+  border: 2px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  flex-shrink: 0;
+}
+.ofl-mic-ring:hover { border-color: var(--green); transform: scale(1.04); }
+.ofl-mic-ring.listening {
+  background: var(--green2);
+  border-color: var(--green);
+  animation: ofl-mic-pulse 1.4s infinite;
+}
+.ofl-mic-ring.loading {
+  border-color: var(--amber);
+  animation: ofl-mic-spin 1.2s linear infinite;
+}
+@keyframes ofl-mic-spin {
+  from { box-shadow: 0 0 0 4px rgba(251,191,36,.3); transform: scale(1); }
+  50%  { box-shadow: 0 0 0 10px rgba(251,191,36,.1); transform: scale(1.03); }
+  to   { box-shadow: 0 0 0 4px rgba(251,191,36,.3); transform: scale(1); }
+}
+.ofl-mic-ring.listening svg { stroke: white; }
+@keyframes ofl-mic-pulse {
+  0%,100% { box-shadow: 0 0 0 6px rgba(16,185,129,.2), 0 0 0 14px rgba(16,185,129,.08); }
+  50%      { box-shadow: 0 0 0 10px rgba(16,185,129,.25), 0 0 0 22px rgba(16,185,129,.05); }
+}
+.ofl-mic-ring svg { width: 34px; height: 34px; stroke: var(--text2); }
+.ofl-mic-label { font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: center; line-height: 1.5; }
+.ofl-mic-label.active { color: var(--green); }
+
+.ofl-transcript-area {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ofl-transcript-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.ofl-transcript-box {
+  min-height: 42px;
+  background: var(--bg3);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+.ofl-transcript-box.live { border-color: var(--green); }
+
+.ofl-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+}
+.ofl-log-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.ofl-log-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 5px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: var(--bg3);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.ofl-log-item.ok   { border-left: 2px solid var(--green); }
+.ofl-log-item.fail { border-left: 2px solid var(--red); }
+.ofl-log-item.info { border-left: 2px solid var(--accent); }
+.ofl-log-text { flex: 1; color: var(--text2); }
+.ofl-log-time { color: var(--text3); font-size: 9px; flex-shrink: 0; }
+
+.ofl-text-bar {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ofl-text-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+}
+.ofl-text-input:focus { border-color: var(--accent); }
+
+/* Right side — live code preview */
+.ofl-code-side {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+.ofl-code-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.ofl-code-title { font-size: 12px; font-weight: 600; color: var(--text2); flex: 1; font-family: var(--mono); }
+.ofl-commands-ref {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+.ofl-ref-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ofl-ref-card:hover { border-color: var(--green); background: var(--bg3); }
+.ofl-ref-phrase {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  margin-bottom: 3px;
+  font-weight: 600;
+}
+.ofl-ref-desc { font-size: 11px; color: var(--text3); }
+.ofl-ref-preview {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  margin-top: 5px;
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 3px 6px;
+  white-space: pre;
+  overflow: hidden;
+  max-height: 32px;
+}
+</style>
+
+<div id="offline-panel">
+  <div class="ofl-header">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+    <span class="ofl-title">Offline Voice Mode</span>
+    <span class="ofl-badge">WHISPER · NO INTERNET</span>
+    <button class="btn btn-ghost btn-sm" onclick="toggleOfflinePanel()" style="margin-left:auto">✕ Close</button>
+  </div>
+
+  <div class="ofl-body">
+    <!-- LEFT: mic + log -->
+    <div class="ofl-mic-side">
+      <div class="ofl-mic-zone">
+        <div class="ofl-mic-ring" id="ofl-mic-ring" onclick="oflToggleMic()" title="Click to start / stop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </div>
+        <div class="ofl-mic-label" id="ofl-mic-label">Click to load Whisper<br>& start offline STT</div>
+        <button class="btn btn-green btn-sm" onclick="oflToggleMic()" id="ofl-toggle-btn" style="width:100%">
+          ▶ Start Listening
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="oflClearEditor()" style="width:100%">🗑 Clear Editor</button>
+      </div>
+
+      <div class="ofl-transcript-area">
+        <div class="ofl-transcript-label">Transcript</div>
+        <div class="ofl-transcript-box" id="ofl-transcript">Say a command…</div>
+      </div>
+
+      <div class="ofl-log">
+        <div class="ofl-log-label">Command Log</div>
+        <div id="ofl-log-list">
+          <div style="color:var(--text3);font-size:11px;font-family:var(--mono);padding:8px 0">No commands yet.</div>
+        </div>
+      </div>
+
+      <div class="ofl-text-bar">
+        <input class="ofl-text-input" id="ofl-text-input" placeholder="Or type a command…" onkeydown="if(event.key==='Enter')oflRunText()">
+        <button class="btn btn-accent btn-sm" onclick="oflRunText()">Run</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: command reference cards -->
+    <div class="ofl-code-side">
+      <div class="ofl-code-header">
+        <span class="ofl-code-title">📖 Voice Command Reference — click any card to insert</span>
+        <button class="btn btn-ghost btn-sm" onclick="oflInsertMain()">Insert main()</button>
+      </div>
+      <div class="ofl-commands-ref" id="ofl-ref-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  OFFLINE VOICE MODE  —  pure client-side, no API calls
+//  Uses: Web Speech API (SpeechRecognition) for STT
+//        Rule-based map for speech → raw C++ code
+//        Inserts directly into Monaco (or textarea fallback)
+// ═══════════════════════════════════════════════════════════════
+
+// ── Panel toggle ──────────────────────────────────────────────
+let oflPanelOpen = false;
+function toggleOfflinePanel() {
+  oflPanelOpen = !oflPanelOpen;
+  const pill = document.getElementById('offline-nav-pill');
+  if (pill) pill.classList.toggle('active', oflPanelOpen);
+
+  const onlineContent  = document.getElementById('sidebar-online-content');
+  const offlineContent = document.getElementById('sidebar-offline-content');
+  if (onlineContent)  onlineContent.style.display  = oflPanelOpen ? 'none' : 'flex';
+  if (offlineContent) offlineContent.style.display = oflPanelOpen ? 'flex' : 'none';
+
+  const offTab = document.getElementById('offline-right-tab');
+  if (offTab) offTab.style.display = oflPanelOpen ? '' : 'none';
+
+  if (oflPanelOpen) {
+    if (offTab) switchPanel('offline', offTab);
+    oflLogInfo('Offline mode ready. Click the mic to start.');
+  } else {
+    oflStopMic();
+    const guideTab = document.querySelector('.panel-tab');
+    switchPanel('guide', guideTab);
+  }
+}
+
+// ── C++ code snippets database ─────────────────────────────────
+// Each entry: { phrases: [...], label, desc, code }
+// Phrases are matched case-insensitively; first match wins.
+const OFL_COMMANDS = [
+  // ── Program structure ──
+  {
+    phrases: ['hello world','write hello world','create hello world','basic hello world'],
+    label: '"hello world"',
+    desc: 'Full hello world program',
+    code:
+`#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, World!" << endl;
+    return 0;
+}`
+  },
+  {
+    phrases: ['main function','write main','add main','insert main','create main'],
+    label: '"main function"',
+    desc: 'int main() skeleton',
+    code:
+`int main() {
+    // your code here
+    return 0;
+}`
+  },
+  {
+    phrases: ['include iostream','add iostream','include standard input output'],
+    label: '"include iostream"',
+    desc: '#include <iostream>',
+    code: `#include <iostream>\nusing namespace std;\n`
+  },
+  {
+    phrases: ['include all','include everything','add all headers','standard headers'],
+    label: '"include all"',
+    desc: 'Common C++ headers',
+    code:
+`#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+using namespace std;`
+  },
+
+  // ── Variables ──
+  {
+    phrases: ['declare integer','integer variable','add int','create int variable'],
+    label: '"declare integer"',
+    desc: 'int variable',
+    code: `int num = 0;`
+  },
+  {
+    phrases: ['declare float','float variable','add float'],
+    label: '"declare float"',
+    desc: 'float variable',
+    code: `float num = 0.0f;`
+  },
+  {
+    phrases: ['declare double','double variable','add double'],
+    label: '"declare double"',
+    desc: 'double variable',
+    code: `double num = 0.0;`
+  },
+  {
+    phrases: ['declare string','string variable','add string','create string'],
+    label: '"declare string"',
+    desc: 'std::string variable',
+    code: `string text = "";`
+  },
+  {
+    phrases: ['declare boolean','bool variable','add bool','boolean variable'],
+    label: '"declare boolean"',
+    desc: 'bool variable',
+    code: `bool flag = false;`
+  },
+  {
+    phrases: ['declare char','char variable','add char','character variable'],
+    label: '"declare char"',
+    desc: 'char variable',
+    code: `char ch = '\\0';`
+  },
+  {
+    phrases: ['constant','declare constant','add const','create constant'],
+    label: '"constant"',
+    desc: 'const int',
+    code: `const int MAX_VALUE = 100;`
+  },
+
+  // ── Input / Output ──
+  {
+    phrases: ['print','cout','print line','write output','output line','print text'],
+    label: '"print"',
+    desc: 'cout << ...',
+    code: `cout << "Hello" << endl;`
+  },
+  {
+    phrases: ['read input','cin','get input','user input','read integer'],
+    label: '"read input"',
+    desc: 'cin >> variable',
+    code:
+`int n;
+cin >> n;`
+  },
+  {
+    phrases: ['print variable','output variable','print number'],
+    label: '"print variable"',
+    desc: 'cout with variable',
+    code: `cout << "Value: " << num << endl;`
+  },
+  {
+    phrases: ['newline','add newline','print newline','endl'],
+    label: '"newline"',
+    desc: 'endl / \\n',
+    code: `cout << endl;`
+  },
+
+  // ── Control flow ──
+  {
+    phrases: ['if statement','add if','write if','create if','if condition'],
+    label: '"if statement"',
+    desc: 'if / else block',
+    code:
+`if (condition) {
+    // true branch
+} else {
+    // false branch
+}`
+  },
+  {
+    phrases: ['if else if','else if chain','if else if else'],
+    label: '"if-else if"',
+    desc: 'if / else if / else',
+    code:
+`if (x > 0) {
+    // positive
+} else if (x < 0) {
+    // negative
+} else {
+    // zero
+}`
+  },
+  {
+    phrases: ['switch statement','switch case','add switch','write switch'],
+    label: '"switch"',
+    desc: 'switch / case block',
+    code:
+`switch (value) {
+    case 1:
+        break;
+    case 2:
+        break;
+    default:
+        break;
+}`
+  },
+  {
+    phrases: ['ternary','ternary operator','conditional operator'],
+    label: '"ternary"',
+    desc: 'a ? b : c',
+    code: `int result = (a > b) ? a : b;`
+  },
+
+  // ── Loops ──
+  {
+    phrases: ['for loop','add for','write for loop','create for loop','for i loop'],
+    label: '"for loop"',
+    desc: 'Classic for loop',
+    code:
+`for (int i = 0; i < n; i++) {
+    // loop body
+}`
+  },
+  {
+    phrases: ['while loop','add while','write while','create while loop'],
+    label: '"while loop"',
+    desc: 'while loop',
+    code:
+`while (condition) {
+    // loop body
+}`
+  },
+  {
+    phrases: ['do while','do while loop','add do while'],
+    label: '"do-while"',
+    desc: 'do-while loop',
+    code:
+`do {
+    // loop body
+} while (condition);`
+  },
+  {
+    phrases: ['range for','range based for','for each','foreach loop'],
+    label: '"range-for"',
+    desc: 'Range-based for loop',
+    code:
+`for (auto& item : collection) {
+    // use item
+}`
+  },
+  {
+    phrases: ['break','add break','write break'],
+    label: '"break"',
+    desc: 'break statement',
+    code: `break;`
+  },
+  {
+    phrases: ['continue','add continue','write continue'],
+    label: '"continue"',
+    desc: 'continue statement',
+    code: `continue;`
+  },
+
+  // ── Functions ──
+  {
+    phrases: ['void function','create function','add function','write function','new function'],
+    label: '"void function"',
+    desc: 'void function',
+    code:
+`void myFunction() {
+    // function body
+}`
+  },
+  {
+    phrases: ['return function','int function','function that returns','function returns int'],
+    label: '"int function"',
+    desc: 'Function returning int',
+    code:
+`int myFunction(int x) {
+    return x;
+}`
+  },
+  {
+    phrases: ['function with parameters','function with args','function parameters'],
+    label: '"function params"',
+    desc: 'Function with multiple params',
+    code:
+`int add(int a, int b) {
+    return a + b;
+}`
+  },
+  {
+    phrases: ['recursive function','recursion','factorial','write factorial'],
+    label: '"recursion"',
+    desc: 'Recursive factorial',
+    code:
+`int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}`
+  },
+  {
+    phrases: ['lambda','lambda function','write lambda','add lambda'],
+    label: '"lambda"',
+    desc: 'C++11 lambda',
+    code: `auto fn = [](int x) { return x * x; };`
+  },
+
+  // ── Arrays ──
+  {
+    phrases: ['array','declare array','create array','integer array','add array'],
+    label: '"array"',
+    desc: 'int array',
+    code: `int arr[10] = {0};`
+  },
+  {
+    phrases: ['two dimensional array','2d array','matrix','declare matrix'],
+    label: '"2D array"',
+    desc: '2D int array',
+    code: `int matrix[3][3] = {{0}};`
+  },
+  {
+    phrases: ['array loop','loop through array','print array','iterate array'],
+    label: '"array loop"',
+    desc: 'Loop through array',
+    code:
+`for (int i = 0; i < n; i++) {
+    cout << arr[i] << " ";
+}
+cout << endl;`
+  },
+
+  // ── Vectors ──
+  {
+    phrases: ['vector','create vector','declare vector','int vector','add vector'],
+    label: '"vector"',
+    desc: 'std::vector',
+    code: `vector<int> v;`
+  },
+  {
+    phrases: ['push back','add to vector','vector push','append to vector'],
+    label: '"push_back"',
+    desc: 'v.push_back()',
+    code: `v.push_back(42);`
+  },
+  {
+    phrases: ['sort vector','sort array','sort ascending'],
+    label: '"sort"',
+    desc: 'std::sort ascending',
+    code: `sort(v.begin(), v.end());`
+  },
+  {
+    phrases: ['sort descending','sort reverse','sort largest first'],
+    label: '"sort descending"',
+    desc: 'std::sort descending',
+    code: `sort(v.begin(), v.end(), greater<int>());`
+  },
+  {
+    phrases: ['vector size','size of vector','vector length'],
+    label: '"vector size"',
+    desc: 'v.size()',
+    code: `int sz = (int)v.size();`
+  },
+
+  // ── Strings ──
+  {
+    phrases: ['string length','length of string','string size'],
+    label: '"string length"',
+    desc: 's.length()',
+    code: `int len = s.length();`
+  },
+  {
+    phrases: ['substring','sub string','get substring','string slice'],
+    label: '"substring"',
+    desc: 's.substr()',
+    code: `string sub = s.substr(0, 5);`
+  },
+  {
+    phrases: ['string find','find in string','search string'],
+    label: '"string find"',
+    desc: 's.find()',
+    code: `size_t pos = s.find("target");`
+  },
+  {
+    phrases: ['to string','int to string','number to string','convert to string'],
+    label: '"to_string"',
+    desc: 'std::to_string()',
+    code: `string str = to_string(num);`
+  },
+  {
+    phrases: ['string to int','stoi','convert string to int'],
+    label: '"stoi"',
+    desc: 'std::stoi()',
+    code: `int num = stoi(str);`
+  },
+  {
+    phrases: ['string concatenate','concat strings','join strings','combine strings'],
+    label: '"concat"',
+    desc: 'String concatenation',
+    code: `string result = s1 + s2;`
+  },
+
+  // ── Pointers ──
+  {
+    phrases: ['pointer','declare pointer','create pointer','integer pointer','add pointer'],
+    label: '"pointer"',
+    desc: 'int pointer',
+    code:
+`int value = 42;
+int* ptr = &value;`
+  },
+  {
+    phrases: ['null pointer','nullptr','null ptr'],
+    label: '"nullptr"',
+    desc: 'nullptr check',
+    code:
+`int* ptr = nullptr;
+if (ptr != nullptr) { /* use ptr */ }`
+  },
+  {
+    phrases: ['dynamic memory','new delete','allocate memory','heap allocation'],
+    label: '"new / delete"',
+    desc: 'Dynamic allocation',
+    code:
+`int* ptr = new int(0);
+// use ptr
+delete ptr;
+ptr = nullptr;`
+  },
+  {
+    phrases: ['dereference','dereference pointer','access pointer value'],
+    label: '"dereference"',
+    desc: '*ptr',
+    code: `int val = *ptr;  // dereference`
+  },
+
+  // ── Classes & Structs ──
+  {
+    phrases: ['class','create class','add class','write class','new class'],
+    label: '"class"',
+    desc: 'Class skeleton',
+    code:
+`class MyClass {
+public:
+    int value;
+    MyClass(int v) : value(v) {}
+    void display() {
+        cout << value << endl;
+    }
+};`
+  },
+  {
+    phrases: ['struct','create struct','add struct','write struct'],
+    label: '"struct"',
+    desc: 'Struct definition',
+    code:
+`struct Point {
+    int x;
+    int y;
+};`
+  },
+  {
+    phrases: ['constructor','add constructor','write constructor'],
+    label: '"constructor"',
+    desc: 'Constructor',
+    code:
+`MyClass(int x, int y) : x(x), y(y) {
+    // constructor body
+}`
+  },
+  {
+    phrases: ['destructor','add destructor'],
+    label: '"destructor"',
+    desc: 'Destructor',
+    code:
+`~MyClass() {
+    // cleanup
+}`
+  },
+  {
+    phrases: ['getter setter','get set','accessor','add getter setter'],
+    label: '"getter/setter"',
+    desc: 'Getter & setter methods',
+    code:
+`int getValue() const { return value; }
+void setValue(int v) { value = v; }`
+  },
+  {
+    phrases: ['inheritance','inherit class','derive class','extend class'],
+    label: '"inheritance"',
+    desc: 'Class inheritance',
+    code:
+`class Derived : public Base {
+public:
+    Derived() : Base() {}
+};`
+  },
+  {
+    phrases: ['virtual function','virtual method','polymorphism','override'],
+    label: '"virtual"',
+    desc: 'Virtual function',
+    code:
+`virtual void speak() {
+    cout << "Base" << endl;
+}
+// In derived class:
+// void speak() override { cout << "Derived" << endl; }`
+  },
+
+  // ── Exception handling ──
+  {
+    phrases: ['try catch','exception','add try catch','error handling','throw exception'],
+    label: '"try-catch"',
+    desc: 'Exception handling',
+    code:
+`try {
+    // risky code
+} catch (const exception& e) {
+    cerr << "Error: " << e.what() << endl;
+}`
+  },
+  {
+    phrases: ['throw','throw error','throw runtime error'],
+    label: '"throw"',
+    desc: 'throw runtime_error',
+    code: `throw runtime_error("Something went wrong");`
+  },
+
+  // ── File I/O ──
+  {
+    phrases: ['read file','open file','file input','fstream read'],
+    label: '"read file"',
+    desc: 'Read from file',
+    code:
+`#include <fstream>
+ifstream file("input.txt");
+string line;
+while (getline(file, line)) {
+    cout << line << endl;
+}
+file.close();`
+  },
+  {
+    phrases: ['write file','save file','file output','fstream write'],
+    label: '"write file"',
+    desc: 'Write to file',
+    code:
+`#include <fstream>
+ofstream file("output.txt");
+file << "Hello, file!" << endl;
+file.close();`
+  },
+
+  // ── Math / algorithms ──
+  {
+    phrases: ['square root','sqrt','calculate square root'],
+    label: '"sqrt"',
+    desc: 'std::sqrt',
+    code: `double result = sqrt(25.0);`
+  },
+  {
+    phrases: ['power','pow','raise to power'],
+    label: '"pow"',
+    desc: 'std::pow',
+    code: `double result = pow(2.0, 10.0);`
+  },
+  {
+    phrases: ['absolute value','abs','absolute'],
+    label: '"abs"',
+    desc: 'std::abs',
+    code: `int result = abs(-42);`
+  },
+  {
+    phrases: ['max value','maximum','find max'],
+    label: '"max"',
+    desc: 'std::max',
+    code: `int m = max(a, b);`
+  },
+  {
+    phrases: ['min value','minimum','find min'],
+    label: '"min"',
+    desc: 'std::min',
+    code: `int m = min(a, b);`
+  },
+  {
+    phrases: ['bubble sort','write bubble sort','create bubble sort'],
+    label: '"bubble sort"',
+    desc: 'Bubble sort algorithm',
+    code:
+`void bubbleSort(int arr[], int n) {
+    for (int i = 0; i < n - 1; i++)
+        for (int j = 0; j < n - i - 1; j++)
+            if (arr[j] > arr[j + 1])
+                swap(arr[j], arr[j + 1]);
+}`
+  },
+  {
+    phrases: ['binary search','write binary search','create binary search'],
+    label: '"binary search"',
+    desc: 'Binary search',
+    code:
+`int binarySearch(vector<int>& arr, int target) {
+    int lo = 0, hi = (int)arr.size() - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (arr[mid] == target) return mid;
+        if (arr[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}`
+  },
+  {
+    phrases: ['fibonacci','write fibonacci','fibonacci sequence'],
+    label: '"fibonacci"',
+    desc: 'Fibonacci function',
+    code:
+`int fibonacci(int n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}`
+  },
+  {
+    phrases: ['swap','swap values','exchange values'],
+    label: '"swap"',
+    desc: 'Swap two values',
+    code: `swap(a, b);`
+  },
+
+  // ── Comments ──
+  {
+    phrases: ['single comment','add comment','write comment','line comment'],
+    label: '"comment"',
+    desc: 'Single-line comment',
+    code: `// TODO: add your code here`
+  },
+  {
+    phrases: ['block comment','multi line comment','multiline comment'],
+    label: '"block comment"',
+    desc: 'Multi-line comment',
+    code:
+`/*
+ * Block comment
+ * Describe what this does
+ */`
+  },
+
+  // ── Miscellaneous ──
+  {
+    phrases: ['return zero','return 0','end main'],
+    label: '"return 0"',
+    desc: 'return 0;',
+    code: `return 0;`
+  },
+  {
+    phrases: ['semicolon','add semicolon'],
+    label: '"semicolon"',
+    desc: ';',
+    code: `;`
+  },
+  {
+    phrases: ['namespace std','using namespace','add using namespace'],
+    label: '"using namespace"',
+    desc: 'using namespace std',
+    code: `using namespace std;`
+  },
+  {
+    phrases: ['map','hash map','unordered map','create map','add map'],
+    label: '"unordered_map"',
+    desc: 'Hash map',
+    code:
+`unordered_map<string, int> mp;
+mp["key"] = 42;`
+  },
+  {
+    phrases: ['stack','create stack','add stack'],
+    label: '"stack"',
+    desc: 'std::stack',
+    code:
+`stack<int> st;
+st.push(1);
+st.pop();`
+  },
+  {
+    phrases: ['queue','create queue','add queue'],
+    label: '"queue"',
+    desc: 'std::queue',
+    code:
+`queue<int> q;
+q.push(1);
+q.pop();`
+  },
+  {
+    phrases: ['linked list','create linked list','node struct'],
+    label: '"linked list node"',
+    desc: 'Linked list node',
+    code:
+`struct Node {
+    int data;
+    Node* next;
+    Node(int d) : data(d), next(nullptr) {}
+};`
+  },
+  {
+    phrases: ['clear','clear editor','clear code','erase everything','delete all code'],
+    label: '"clear editor"',
+    desc: 'Clears the editor',
+    code: null  // special action
+  },
+  {
+    phrases: ['undo','undo last'],
+    label: '"undo"',
+    desc: 'Undo last change',
+    code: null  // special action
+  },
+];
+
+// ── Voice recognition engine ───────────────────────────────────
+let oflIsListening = false;
+let oflLogEntries  = [];
+
+function oflMatchCommand(text) {
+  const lower = text.toLowerCase().trim();
+  for (const cmd of OFL_COMMANDS) {
+    for (const phrase of cmd.phrases) {
+      if (lower.includes(phrase)) return cmd;
+    }
+  }
+  return null;
+}
+
+function oflExecuteCommand(cmd, rawText) {
+  if (!cmd) {
+    oflAddLog('fail', `❓ Not recognized: "${rawText}"`);
+    if (typeof showToast === 'function') showToast('warn', 'Offline: command not recognized');
+    return;
+  }
+
+  // Special actions
+  if (cmd.code === null) {
+    if (cmd.phrases.includes('clear') || rawText.toLowerCase().includes('clear')) {
+      oflClearEditor();
+      oflAddLog('info', '🗑 Editor cleared');
+      return;
+    }
+    if (cmd.phrases.includes('undo')) {
+      try { if (window.monacoEditor) monacoEditor.trigger('keyboard','undo',null); } catch(e){}
+      oflAddLog('ok', '↩ Undo');
+      return;
+    }
+    return;
+  }
+
+  // Insert code into Monaco / textarea
+  oflInsertCode(cmd.code);
+  oflAddLog('ok', `✓ Inserted: ${cmd.label}`);
+  if (typeof showToast === 'function') showToast('success', `Offline: ${cmd.label}`);
+}
+
+function oflInsertCode(code) {
+  // Try Monaco first
+  if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+    const selection = monacoEditor.getSelection();
+    const range = {
+      startLineNumber: selection.endLineNumber,
+      startColumn: selection.endColumn,
+      endLineNumber: selection.endLineNumber,
+      endColumn: selection.endColumn,
+    };
+    monacoEditor.executeEdits('offline-voice', [{
+      range,
+      text: '\n' + code + '\n',
+      forceMoveMarkers: true,
+    }]);
+    monacoEditor.focus();
+    // Mark tab modified
+    if (typeof markActiveModified === 'function') markActiveModified();
+    return;
+  }
+  // Textarea fallback
+  const ta = document.getElementById('code-editor');
+  if (ta) {
+    const s = ta.selectionStart;
+    ta.value = ta.value.slice(0, s) + '\n' + code + '\n' + ta.value.slice(s);
+    ta.selectionStart = ta.selectionEnd = s + code.length + 2;
+    if (typeof updateLineNumbers === 'function') updateLineNumbers();
+    if (typeof markActiveModified === 'function') markActiveModified();
+  }
+}
+
+function oflInsertSnippet(code) { oflInsertCode(code); }
+
+function oflInsertMain() {
+  const hello =
+`#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, World!" << endl;
+    return 0;
+}`;
+  oflInsertCode(hello);
+  oflAddLog('ok', '✓ Inserted: main()');
+}
+
+function oflClearEditor() {
+  if (typeof clearActiveTab === 'function') {
+    clearActiveTab();
+  } else {
+    const ta = document.getElementById('code-editor');
+    if (ta) { ta.value = ''; if (typeof updateLineNumbers === 'function') updateLineNumbers(); }
+  }
+}
+
+// ── Log ───────────────────────────────────────────────────────
+function oflAddLog(type, text) {
+  const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  oflLogEntries.unshift({type, text, time});
+  const list = document.getElementById('ofl-log-list');
+  if (!list) return;
+  list.innerHTML = oflLogEntries.slice(0, 40).map(e =>
+    `<div class="ofl-log-item ${e.type}">
+       <span class="ofl-log-text">${escHtml ? escHtml(e.text) : e.text}</span>
+       <span class="ofl-log-time">${e.time}</span>
+     </div>`
+  ).join('');
+}
+
+function oflLogInfo(text) { oflAddLog('info', text); }
+
+// ═══════════════════════════════════════════════════════════════
+//  TRUE OFFLINE STT — Whisper (tiny.en) via Transformers.js
+//  Runs 100% in-browser (WebAssembly). No internet after first load.
+//  First use: ~40 MB model download, cached by browser forever.
+// ═══════════════════════════════════════════════════════════════
+
+let whisperPipeline   = null;   // loaded once, reused
+let whisperLoading    = false;
+let oflMediaRecorder  = null;
+let oflAudioChunks    = [];
+let oflRecordTimer    = null;
+const OFL_CHUNK_MS    = 4000;   // record 4-second windows then transcribe
+
+// Load Whisper model (lazy — only on first mic click)
+async function oflLoadWhisper() {
+  if (whisperPipeline)  return whisperPipeline;
+  if (whisperLoading)   return null;
+  whisperLoading = true;
+
+  oflAddLog('info', '⏳ Loading Whisper model (~40 MB, cached after first use)…');
+  oflSetTranscript('Loading offline model…', false);
+  const ring = document.getElementById('ofl-mic-ring');
+  if (ring) ring.classList.add('loading');
+
+  try {
+    // Transformers.js v3 — ESM CDN, works fully offline after cache
+    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+    env.allowLocalModels = false; // use HF CDN, browser caches the weights
+    whisperPipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+      progress_callback: (p) => {
+        if (p.status === 'downloading') {
+          const pct = p.total ? Math.round(p.loaded / p.total * 100) : '…';
+          oflSetTranscript(`Downloading model: ${pct}%`, false);
+        }
+      }
+    });
+    if (ring) ring.classList.remove('loading');
+    oflAddLog('ok', '✓ Whisper model ready. 100% offline STT active.');
+    oflSetTranscript('Model ready — say a command!', false);
+    whisperLoading = false;
+    return whisperPipeline;
+  } catch(err) {
+    if (ring) ring.classList.remove('loading');
+    oflAddLog('fail', '✗ Could not load Whisper: ' + err.message);
+    oflSetTranscript('Model load failed. Check console.', false);
+    whisperLoading = false;
+    return null;
+  }
+}
+
+// ── Mic toggle ────────────────────────────────────────────────
+function oflToggleMic() {
+  if (oflIsListening) oflStopMic();
+  else                oflStartMic();
+}
+
+async function oflStartMic() {
+  if (oflIsListening) return;
+
+  // 1. Ensure mic permission
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(err) {
+    oflAddLog('fail', '✗ Microphone access denied: ' + err.message);
+    if (typeof showToast === 'function') showToast('error', 'Mic permission denied.');
+    return;
+  }
+
+  // 2. Load Whisper (no-op after first load)
+  const pipe = await oflLoadWhisper();
+  if (!pipe) { stream.getTracks().forEach(t => t.stop()); return; }
+
+  oflIsListening = true;
+  oflUpdateMicUI(true);
+  oflAddLog('info', '🎙 Microphone started. Listening… (WiFi not required)');
+
+  // 3. Start chunked recording loop
+  function startChunk() {
+    if (!oflIsListening) return;
+    oflAudioChunks = [];
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus' : 'audio/webm';
+    oflMediaRecorder = new MediaRecorder(stream, { mimeType });
+
+    oflMediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) oflAudioChunks.push(e.data);
+    };
+
+    oflMediaRecorder.onstop = async () => {
+      if (!oflIsListening || oflAudioChunks.length === 0) return;
+      const blob = new Blob(oflAudioChunks, { type: mimeType });
+      await oflTranscribeBlob(blob);
+      if (oflIsListening) startChunk(); // next window
+    };
+
+    oflMediaRecorder.start();
+    oflRecordTimer = setTimeout(() => {
+      if (oflMediaRecorder && oflMediaRecorder.state === 'recording') {
+        oflMediaRecorder.stop();
+      }
+    }, OFL_CHUNK_MS);
+  }
+
+  startChunk();
+}
+
+async function oflTranscribeBlob(blob) {
+  try {
+    oflSetTranscript('🔄 Transcribing…', false);
+    // Convert blob → float32 PCM via AudioContext (works offline)
+    const arrayBuf = await blob.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const decoded  = await audioCtx.decodeAudioData(arrayBuf);
+    audioCtx.close();
+
+    const rawPCM = decoded.getChannelData(0); // mono float32
+
+    const result = await whisperPipeline(rawPCM, {
+      language: 'english',
+      task: 'transcribe',
+      chunk_length_s: 30,
+    });
+
+    const text = (result.text || '').trim();
+    if (!text || text.toLowerCase() === '[blank_audio]') return;
+
+    oflSetTranscript(text, true);
+    const cmd = oflMatchCommand(text);
+    oflExecuteCommand(cmd, text);
+  } catch(err) {
+    // Silently skip bad chunks — don't stop the mic
+    console.warn('[Whisper] transcribe error:', err);
+  }
+}
+
+function oflSetTranscript(text, isFinal) {
+  const box = document.getElementById('ofl-transcript');
+  if (box) {
+    box.textContent = text;
+    box.className   = 'ofl-transcript-box' + (isFinal ? '' : ' live');
+  }
+}
+
+function oflStopMic() {
+  oflIsListening = false;
+  clearTimeout(oflRecordTimer);
+  if (oflMediaRecorder && oflMediaRecorder.state !== 'inactive') {
+    try { oflMediaRecorder.stop(); } catch(e) {}
+  }
+  oflMediaRecorder = null;
+  oflAudioChunks   = [];
+  oflUpdateMicUI(false);
+  oflAddLog('info', '⏹ Microphone stopped.');
+}
+
+function oflUpdateMicUI(active) {
+  const ring  = document.getElementById('ofl-mic-ring');
+  const label = document.getElementById('ofl-mic-label');
+  const btn   = document.getElementById('ofl-toggle-btn');
+  if (ring)  ring.classList.toggle('listening', active);
+  if (label) { label.textContent = active ? '🎙 Listening…\nSpeak a C++ command' : 'Click to load Whisper\n& start offline STT'; label.className = 'ofl-mic-label' + (active ? ' active' : ''); }
+  if (btn)   { btn.textContent = active ? '⏹ Stop Listening' : '▶ Start Listening'; btn.className = 'btn btn-sm ' + (active ? 'btn-accent' : 'btn-green'); btn.style.width = '100%'; }
+}
+
+// ── Text command input ─────────────────────────────────────────
+function oflRunText() {
+  const inp = document.getElementById('ofl-text-input');
+  const raw = inp ? inp.value.trim() : '';
+  if (!raw) return;
+  const cmd = oflMatchCommand(raw);
+  oflExecuteCommand(cmd, raw);
+  // Show in transcript box
+  const box = document.getElementById('ofl-transcript');
+  if (box) { box.textContent = raw; box.className = 'ofl-transcript-box'; }
+  if (inp) inp.value = '';
+}
+
+// ── Command reference grid ─────────────────────────────────────
+function oflRenderRefGrid() {
+  const grid = document.getElementById('ofl-ref-grid');
+  if (!grid) return;
+  // Show all commands except clear/undo
+  const displayCmds = OFL_COMMANDS.filter(c => c.code !== null);
+  grid.innerHTML = displayCmds.map((cmd, i) =>
+    `<div class="ofl-ref-card" onclick="oflInsertFromCard(${i})" title="Click to insert">
+       <div class="ofl-ref-phrase">${escHtml ? escHtml(cmd.label) : cmd.label}</div>
+       <div class="ofl-ref-desc">${escHtml ? escHtml(cmd.desc) : cmd.desc}</div>
+       <div class="ofl-ref-preview">${escHtml ? escHtml(cmd.code.split('\n')[0]) : cmd.code.split('\n')[0]}</div>
+     </div>`
+  ).join('');
+}
+
+function oflInsertFromCard(idx) {
+  const displayCmds = OFL_COMMANDS.filter(c => c.code !== null);
+  const cmd = displayCmds[idx];
+  if (!cmd) return;
+  oflInsertCode(cmd.code);
+  oflAddLog('ok', `✓ Inserted via card: ${cmd.label}`);
+  if (typeof showToast === 'function') showToast('success', `Inserted: ${cmd.label}`);
+}
+
+// Stop mic if panel is closed by clicking elsewhere
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && oflPanelOpen) toggleOfflinePanel();
+});
 </script>
 </body>
 </html>
