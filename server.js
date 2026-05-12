@@ -1,37 +1,70 @@
+/**
+ * VoiceCoder AI — Auth Backend
+ * Node.js + Express + mssql  →  Microsoft SQL Server
+ *
+ * Install dependencies:
+ *   npm install express mssql bcryptjs jsonwebtoken cors dotenv
+ *
+ * Create a  .env  file (see bottom of this file for template).
+ */
+
 require('dotenv').config();
-const express = require('express');
-const { Pool } = require('pg');
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const cors    = require('cors');
+const express   = require('express');
+const mssql     = require('mssql');
+const bcrypt    = require('bcryptjs');
+const jwt       = require('jsonwebtoken');
+const cors      = require('cors');
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
 
+// ──────────────────────────────────────────────────────────
 //  MIDDLEWARE
+// ──────────────────────────────────────────────────────────
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // serves voicecoder_ai_sql.html from D:\VoiceCoder
 
-//  POSTGRESQL CONNECTION POOL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+// ──────────────────────────────────────────────────────────
+//  SQL SERVER CONNECTION POOL
+// ──────────────────────────────────────────────────────────
+const sqlConfig = {
+  user:     process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server:   process.env.DB_SERVER,      // e.g. "localhost" or ".\SQLEXPRESS"
+  database: process.env.DB_NAME || 'VoiceCoderDB',
+  options: {
+    encrypt:                process.env.DB_ENCRYPT === 'true',  // true for Azure
+    trustServerCertificate: process.env.DB_TRUST_CERT !== 'false', // false in prod
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000,
+  },
+};
 
-pool.connect()
-  .then(() => console.log('✅  Connected to Supabase PostgreSQL'))
-  .catch(err => console.error('❌  DB connection error:', err.message));
+let pool;
+async function getPool() {
+  if (!pool) {
+    pool = await mssql.connect(sqlConfig);
+    console.log('✅  Connected to SQL Server:', sqlConfig.server, '/', sqlConfig.database);
+  }
+  return pool;
+}
 
+// ──────────────────────────────────────────────────────────
 //  HELPERS
-const JWT_SECRET     = process.env.JWT_SECRET || 'change_me_in_production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+// ──────────────────────────────────────────────────────────
+const JWT_SECRET      = process.env.JWT_SECRET || 'change_me_in_production';
+const JWT_EXPIRES_IN  = process.env.JWT_EXPIRES_IN || '7d';   // token TTL
 
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 function tokenExpiresAt() {
+  // Returns a JS Date matching JWT_EXPIRES_IN (simple 7-day default)
   const ms = 7 * 24 * 60 * 60 * 1000;
   return new Date(Date.now() + ms);
 }
@@ -52,12 +85,15 @@ async function authMiddleware(req, res, next) {
   }
 }
 
+// ──────────────────────────────────────────────────────────
 //  ROUTES
+// ──────────────────────────────────────────────────────────
 
-// POST /auth/signup
+// ── POST /auth/signup ────────────────────────────────────
 app.post('/auth/signup', async (req, res) => {
   const { name, email, password } = req.body;
 
+  // Basic server-side validation
   if (!name || !name.trim())
     return res.status(400).json({ field: 'name', error: 'Name is required' });
   if (!email || !/\S+@\S+\.\S+/.test(email))
@@ -66,14 +102,17 @@ app.post('/auth/signup', async (req, res) => {
     return res.status(400).json({ field: 'password', error: 'Password must be at least 6 characters' });
 
   try {
+    const db   = await getPool();
     const hash = await bcrypt.hash(password, 12);
 
-    const result = await pool.query(
-      'SELECT * FROM public.sp_create_user($1, $2, $3)',
-      [name.trim(), email.toLowerCase().trim(), hash]
-    );
+    // Call stored procedure
+    const result = await db.request()
+      .input('name',     mssql.NVarChar(100), name.trim())
+      .input('email',    mssql.NVarChar(255), email.toLowerCase().trim())
+      .input('password', mssql.NVarChar(255), hash)
+      .execute('sp_CreateUser');
 
-    const row = result.rows[0];
+    const row = result.recordset[0];
 
     if (!row.success) {
       if (row.error_code === 'EMAIL_EXISTS')
@@ -84,10 +123,14 @@ app.post('/auth/signup', async (req, res) => {
     const userId = row.user_id;
     const token  = signToken({ id: userId, name: name.trim(), email: email.toLowerCase().trim() });
 
-    await pool.query(
-      'SELECT public.sp_create_session($1, $2, $3, $4, $5)',
-      [userId, token, tokenExpiresAt(), req.ip || null, req.headers['user-agent'] || null]
-    );
+    // Persist session in DB
+    await db.request()
+      .input('user_id',    mssql.Int,          userId)
+      .input('token',      mssql.NVarChar(512), token)
+      .input('expires_at', mssql.DateTime2,     tokenExpiresAt())
+      .input('ip_address', mssql.NVarChar(45),  req.ip || null)
+      .input('user_agent', mssql.NVarChar(500), req.headers['user-agent'] || null)
+      .execute('sp_CreateSession');
 
     res.status(201).json({
       message: 'Account created',
@@ -101,7 +144,7 @@ app.post('/auth/signup', async (req, res) => {
   }
 });
 
-// POST /auth/signin
+// ── POST /auth/signin ────────────────────────────────────
 app.post('/auth/signin', async (req, res) => {
   const { email, password } = req.body;
 
@@ -109,12 +152,13 @@ app.post('/auth/signin', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
 
   try {
-    const result = await pool.query(
-      'SELECT * FROM public.sp_get_user_by_email($1)',
-      [email.toLowerCase().trim()]
-    );
+    const db = await getPool();
 
-    const user = result.rows[0];
+    const result = await db.request()
+      .input('email', mssql.NVarChar(255), email.toLowerCase().trim())
+      .execute('sp_GetUserByEmail');
+
+    const user = result.recordset[0];
 
     if (!user)
       return res.status(401).json({ field: 'email', error: 'No account found with this email' });
@@ -126,14 +170,21 @@ app.post('/auth/signin', async (req, res) => {
     if (!match)
       return res.status(401).json({ field: 'password', error: 'Incorrect password' });
 
-    await pool.query('SELECT public.sp_update_last_login($1)', [user.id]);
+    // Update last_login
+    await db.request()
+      .input('user_id', mssql.Int, user.id)
+      .execute('sp_UpdateLastLogin');
 
     const token = signToken({ id: user.id, name: user.name, email: user.email });
 
-    await pool.query(
-      'SELECT public.sp_create_session($1, $2, $3, $4, $5)',
-      [user.id, token, tokenExpiresAt(), req.ip || null, req.headers['user-agent'] || null]
-    );
+    // Persist session
+    await db.request()
+      .input('user_id',    mssql.Int,          user.id)
+      .input('token',      mssql.NVarChar(512), token)
+      .input('expires_at', mssql.DateTime2,     tokenExpiresAt())
+      .input('ip_address', mssql.NVarChar(45),  req.ip || null)
+      .input('user_agent', mssql.NVarChar(500), req.headers['user-agent'] || null)
+      .execute('sp_CreateSession');
 
     res.json({
       message: 'Signed in',
@@ -147,10 +198,14 @@ app.post('/auth/signin', async (req, res) => {
   }
 });
 
-// POST /auth/signout
+// ── POST /auth/signout  (requires Bearer token) ──────────
 app.post('/auth/signout', authMiddleware, async (req, res) => {
   try {
-    await pool.query('SELECT public.sp_delete_session($1)', [req.token]);
+    const db = await getPool();
+    await db.request()
+      .input('token', mssql.NVarChar(512), req.token)
+      .execute('sp_DeleteSession');
+
     res.json({ message: 'Signed out' });
   } catch (err) {
     console.error('Signout error:', err);
@@ -158,18 +213,18 @@ app.post('/auth/signout', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /auth/me
+// ── GET /auth/me  (validate stored token on page load) ───
 app.get('/auth/me', authMiddleware, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM public.sp_validate_session($1)',
-      [req.token]
-    );
+    const db = await getPool();
+    const result = await db.request()
+      .input('token', mssql.NVarChar(512), req.token)
+      .execute('sp_ValidateSession');
 
-    if (!result.rows.length)
+    if (!result.recordset.length)
       return res.status(401).json({ error: 'Session expired' });
 
-    const { id, name, email } = result.rows[0];
+    const { id, name, email } = result.recordset[0];
     res.json({ user: { id, name, email } });
 
   } catch (err) {
@@ -178,207 +233,32 @@ app.get('/auth/me', authMiddleware, async (req, res) => {
   }
 });
 
-
-// ── FILES (Cloud Save) ──
-app.post('/files/save', authMiddleware, async (req, res) => {
-  const { filename, code } = req.body;
-  if (!filename || code === undefined) return res.status(400).json({ error: 'Missing fields' });
-  try {
-    const db = pool;
-    await db.query(`
-      INSERT INTO public.user_files (user_id, filename, code, updated_at)
-      VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (user_id, filename)
-      DO UPDATE SET code = $3, updated_at = NOW()
-    `, [req.user.id, filename, code]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('File save error:', err);
-    res.status(500).json({ error: 'Save failed' });
-  }
-});
-
-app.get('/files/list', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT id, filename, code, updated_at FROM public.user_files WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 50',
-      [req.user.id]
-    );
-    res.json({ files: result.rows });
-  } catch (err) {
-    console.error('File list error:', err);
-    res.status(500).json({ error: 'List failed' });
-  }
-});
-
-// ── DELETE FILE ──
-app.delete('/files/delete/:id', authMiddleware, async (req, res) => {
-  try {
-    await pool.query(
-      'DELETE FROM public.user_files WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('File delete error:', err);
-    res.status(500).json({ error: 'Delete failed' });
-  }
-});
-
-// ── SHARE CODE ──
-app.post('/files/share', async (req, res) => {
-  const { filename, code } = req.body;
-  if (!code) return res.status(400).json({ error: 'No code' });
-  try {
-    const id = require('crypto').randomBytes(8).toString('hex');
-    await pool.query(
-      'INSERT INTO public.shared_files (share_id, filename, code, created_at) VALUES ($1, $2, $3, NOW())',
-      [id, filename || 'snippet.cpp', code]
-    );
-    const url = `${process.env.FRONTEND_URL || 'https://voicecoder-production.up.railway.app'}?share=${id}`;
-    res.json({ url });
-  } catch (err) {
-    console.error('Share error:', err);
-    res.status(500).json({ error: 'Share failed' });
-  }
-});
-
-app.get('/files/share/:id', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT filename, code FROM public.shared_files WHERE share_id = $1', [req.params.id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Fetch failed' });
-  }
-});
-
-// ── AI CHAT HISTORY ──
-app.post('/chat/save', authMiddleware, async (req, res) => {
-  const { history } = req.body;
-  if (!history) return res.status(400).json({ error: 'No history' });
-  try {
-    await pool.query(`
-      INSERT INTO public.chat_history (user_id, history, updated_at)
-      VALUES ($1, $2, NOW())
-      ON CONFLICT (user_id) DO UPDATE SET history = $2, updated_at = NOW()
-    `, [req.user.id, JSON.stringify(history)]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Save failed' });
-  }
-});
-
-app.get('/chat/history', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT history FROM public.chat_history WHERE user_id = $1', [req.user.id]);
-    if (!result.rows.length) return res.json({ history: [] });
-    res.json({ history: JSON.parse(result.rows[0].history) });
-  } catch (err) {
-    res.status(500).json({ error: 'Load failed' });
-  }
-});
-
-// ── JUDGE0 PROXY ──
-app.post('/compile/judge0', async (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ success: false, error: 'No code' });
-  try {
-    const nodeFetch = await import('node-fetch').then(m => m.default);
-    const sub = await nodeFetch('https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
-        'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com'
-      },
-      body: JSON.stringify({ source_code: code, language_id: 54, stdin: '' })
-    });
-    if (!sub.ok) {
-      // Fallback to Paiza if no RapidAPI key
-      const cr = await nodeFetch('https://api.paiza.io/runners/create?source_code=' + encodeURIComponent(code) + '&language=cpp&api_key=guest', { method: 'POST' });
-      if (!cr.ok) return res.json({ success: false, error: 'Compiler unavailable' });
-      const { id } = await cr.json();
-      await new Promise(r => setTimeout(r, 3000));
-      const gr = await nodeFetch('https://api.paiza.io/runners/get_details?id=' + id + '&api_key=guest');
-      const d = await gr.json();
-      if (d.build_result === 'failure') return res.json({ success: false, error: d.build_stderr || 'Build failed' });
-      return res.json({ success: true, output: d.stdout || '(no output)' });
-    }
-    const d = await sub.json();
-    if (d.compile_output) return res.json({ success: false, errors: [d.compile_output] });
-    if (d.stderr) return res.json({ success: false, errors: [d.stderr] });
-    res.json({ success: true, output: d.stdout || '(no output)' });
-  } catch (err) {
-    console.error('Judge0 proxy error:', err);
-    res.json({ success: false, error: err.message });
-  }
-});
-
-// Health check
+// ── Health check ─────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date() }));
 
-// COMPILE PROXY — avoids CORS issues from the browser
-
-// Paiza.io proxy
-app.post('/compile/paiza', async (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ success: false, error: 'No code provided' });
-  try {
-    const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
-    const cr = await fetch(
-      'https://api.paiza.io/runners/create?source_code=' + encodeURIComponent(code) + '&language=cpp&api_key=guest',
-      { method: 'POST' }
-    );
-    if (!cr.ok) return res.json({ success: false, error: 'Paiza create failed: ' + cr.status });
-    const { id } = await cr.json();
-    await new Promise(r => setTimeout(r, 3000));
-    const gr = await fetch('https://api.paiza.io/runners/get_details?id=' + id + '&api_key=guest');
-    if (!gr.ok) return res.json({ success: false, error: 'Paiza details failed: ' + gr.status });
-    const d = await gr.json();
-    if (d.build_result === 'failure')
-      return res.json({ success: false, error: d.build_stderr || 'Build failed' });
-    return res.json({ success: true, output: d.stdout || '(no output)' });
-  } catch (err) {
-    console.error('Paiza proxy error:', err);
-    res.json({ success: false, error: err.message });
-  }
-});
-
-// JDoodle proxy
-app.post('/compile/jdoodle', async (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ success: false, error: 'No code provided' });
-  const clientId     = process.env.JDOODLE_CLIENT_ID;
-  const clientSecret = process.env.JDOODLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret)
-    return res.json({ success: false, error: 'JDoodle credentials not configured on server' });
-  try {
-    const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
-    const r = await fetch('https://api.jdoodle.com/v1/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, clientSecret, script: code, language: 'cpp17', versionIndex: '0' })
-    });
-    if (!r.ok) return res.json({ success: false, error: 'JDoodle HTTP ' + r.status });
-    const d = await r.json();
-    if (d.error) return res.json({ success: false, error: d.error });
-    if (d.output?.toLowerCase().includes('error:'))
-      return res.json({ success: false, error: d.output });
-    return res.json({ success: true, output: d.output || '' });
-  } catch (err) {
-    console.error('JDoodle proxy error:', err);
-    res.json({ success: false, error: err.message });
-  }
-});
-
-// Catch-all: serve index.html (Express 5 wildcard syntax)
-const path = require('path');
-app.get('/{*path}', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
+// ──────────────────────────────────────────────────────────
 //  START SERVER
+// ──────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀  VoiceCoder server running on http://localhost:${PORT}`);
+  console.log(`🚀  VoiceCoder auth server running on http://localhost:${PORT}`);
+  console.log(`🌐  Open the app at: http://localhost:${PORT}/voicecoder_ai_sql.html`);
 });
+
+/*
+ ┌──────────────────────────────────────────────────────────┐
+ │  .env  template — create this file next to server.js     │
+ ├──────────────────────────────────────────────────────────┤
+ │  PORT=4000                                               │
+ │  FRONTEND_ORIGIN=http://localhost:3000                   │
+ │                                                          │
+ │  DB_SERVER=localhost\SQLEXPRESS                          │
+ │  DB_USER=sa                                              │
+ │  DB_PASSWORD=YourStrong!Password                         │
+ │  DB_NAME=VoiceCoderDB                                    │
+ │  DB_ENCRYPT=false                                        │
+ │  DB_TRUST_CERT=true                                      │
+ │                                                          │
+ │  JWT_SECRET=replace_with_long_random_string              │
+ │  JWT_EXPIRES_IN=7d                                       │
+ └──────────────────────────────────────────────────────────┘
+*/
