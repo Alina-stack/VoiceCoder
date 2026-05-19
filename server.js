@@ -235,7 +235,7 @@ app.post('/files/share', async (req, res) => {
       'INSERT INTO public.shared_files (share_id, filename, code, created_at) VALUES ($1, $2, $3, NOW())',
       [id, filename || 'snippet.cpp', code]
     );
-    const url = `${process.env.FRONTEND_URL || 'https://voicecoder-production.up.railway.app'}?share=${id}`;
+    const url = `${process.env.FRONTEND_URL || 'https://voicecoderai-production-2d67.up.railway.app/'}?share=${id}`;
     res.json({ url });
   } catch (err) {
     console.error('Share error:', err);
